@@ -141,7 +141,6 @@ def get_surface_plot(
     bin_counts, bin_edges = get_wall_bearings(dataset, num_bins)
 
     return orientation_plot(bin_counts, bin_edges)
-    
 
 def azimuth(dx, dy):
     """Returns the azimuth angle for the given coordinates"""
@@ -485,7 +484,6 @@ def process_building(building,
 
         builder.add_index("2d_grid_point_count", lambda: len(si.create_grid_2d(shape, density=density_2d)))
         builder.add_index("3d_grid_point_count", lambda: len(grid))
-
         builder.add_index("circularity_2d", lambda: si.circularity(shape))
         builder.add_index("hemisphericality_3d", lambda: si.hemisphericality(fixed))
         builder.add_index("convexity_2d", lambda: shape.area / shape.convex_hull.area)
@@ -553,6 +551,7 @@ def main(input,
          jobs,
          density_2d,
          density_3d):
+    
     cm = json.load(input)
 
     if "transform" in cm:
@@ -668,7 +667,8 @@ def main(input,
     df.index.name = "id"
 
     if output is None:
-        print(df)
+        #print(df)
+        pass
     else:
         click.echo("Writing output...")
         df.to_csv(output)
