@@ -499,7 +499,7 @@ def process_building(building,
         builder.add_index("horizontal_elongation", lambda: si.elongation(S, L))
         builder.add_index("min_vertical_elongation", lambda: si.elongation(L, height_stats["Max"]))
         builder.add_index("max_vertical_elongation", lambda: si.elongation(S, height_stats["Max"]))
-        builder.add_index("form_factor_3D", lambda: shape.area / math.pow(fixed.volume, 2/3))
+        builder.add_index("form_factor_3D", lambda: shape.area / math.pow(fixed.volume, 2/3) if fixed.volume != 0 else 0)
         builder.add_index("equivalent_rectangularity_index_2d", lambda: si.equivalent_rectangular_index(shape))
         builder.add_index("equivalent_prism_index_3d", lambda: si.equivalent_prism_index(fixed, obb))
         builder.add_index("proximity_index_2d_", lambda: si.proximity_2d(shape, density=density_2d))
