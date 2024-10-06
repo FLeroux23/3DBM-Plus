@@ -151,10 +151,10 @@ def create_surface_grid(mesh, density=1):
     sized = mesh.compute_cell_sizes()
     
     for i in range(mesh.n_cells):
-        if not mesh.cell_type(i) in [5, 6, 7, 9, 10]:
+        if not mesh.get_cell(i).type in [5, 6, 7, 9, 10]:
             continue
         
-        pts = mesh.cell_points(i)
+        pts = mesh.get_cell(i).points
         
         try:
             normal = surface_normal(pts)
