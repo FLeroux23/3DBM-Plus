@@ -14,7 +14,7 @@ def get_points_of_type(mesh, surface_type):
     
     idxs = [s == surface_type for s in mesh.cell_data["semantics"]]
 
-    points = np.array([mesh.cell_points(i) for i in range(mesh.number_of_cells)], dtype=object)
+    points = np.array([mesh.get_cell(i).points for i in range(mesh.number_of_cells)], dtype=object)
 
     if all([i == False for i in idxs]):
         return []
@@ -82,7 +82,7 @@ def area_by_surface(mesh, tri_mesh=None):
         sized = tri_mesh.compute_cell_sizes()
         surface_areas = sized.cell_data["Area"]
 
-        points_per_cell = np.array([mesh.cell_n_points(i) for i in range(mesh.number_of_cells)])
+        points_per_cell = np.array([mesh.get_cell(i).n_points for i in range(mesh.number_of_cells)])
 
         for surface_type in area:
             triangle_idxs = [s == surface_type for s in tri_mesh.cell_data["semantics"]]
@@ -98,7 +98,7 @@ def area_by_surface(mesh, tri_mesh=None):
 def face_planes(mesh):
     """Return the params of all planes in a given mesh"""
 
-    return [plane_params(mesh.face_normals[i], mesh.cell_points(i)[0])
+    return [plane_params(mesh.face_normals[i], mesh.get_cell(i).points[0])
             for i in range(mesh.n_cells)]
 
 def cluster_meshes(meshes, threshold=0.1):
