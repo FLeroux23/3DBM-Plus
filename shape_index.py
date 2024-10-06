@@ -3,12 +3,7 @@
 import math
 from shapely.geometry import Point, MultiPoint, Polygon
 from helpers.geometry import surface_normal
-try:
-    from helpers.mesh import to_pymesh, to_pyvista, intersect
-    pymesh_exists = True
-except:
-    print("WARNING: pymesh not found! Exchange index calculation will be omitted...")
-    pymesh_exists = False
+from helpers.mesh import to_trimesh, to_pyvista, intersect
 import miniball
 import numpy as np
 import pyvista as pv
@@ -280,7 +275,7 @@ def exchange_2d(shape):
     
     return shape.intersection(eac).area / shape.area
 
-def exchange_3d(mesh, evs=None, density=0.25, engine="igl"):
+def exchange_3d(mesh, evs=None, density=0.25, engine="manifold"):
     """Returns the exhange index in 3D for a given mesh
     
     mesh: The pyvista mesh to evaluate
@@ -288,9 +283,6 @@ def exchange_3d(mesh, evs=None, density=0.25, engine="igl"):
     density: If no evs is provided, it is used to create a grid to compute the center of mass
     enginge: The engine for the boolean operations
     """
-
-    if not pymesh_exists:
-        return -1
     
     if evs is None:
         voxel = pv.voxelize(mesh, density=density, check_surface=False)
@@ -306,8 +298,8 @@ def exchange_3d(mesh, evs=None, density=0.25, engine="igl"):
     if mesh.n_open_edges > 0:
         return -1
 
-    pm_mesh = to_pymesh(mesh)
-    pm_evs = to_pymesh(evs)
+    pm_mesh = to_trimesh(mesh)
+    pm_evs = to_trimesh(evs)
 
     try:
         inter = intersect(pm_mesh, pm_evs, engine)
