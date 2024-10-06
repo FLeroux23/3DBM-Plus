@@ -39,6 +39,8 @@ def fractality_2d(shape):
 def fractality_3d(mesh):
     """Returns the fractality in 3D for a given volume"""
 
+    if mesh.volume <= 0 or mesh.area <= 0:
+        return 0
     # TODO: Check this formula
     return 1 - math.log(mesh.volume) / (3/2 * math.log(mesh.area))
 
