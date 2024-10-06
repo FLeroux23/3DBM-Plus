@@ -181,7 +181,8 @@ def intersect_surfaces(meshes):
     for plane in range(n_clusters):
         # For every common plane, extract the faces that belong to it
         idxs = [np.where(np.array(labels[m]) == plane)[0] for m in range(n_meshes)]
-                
+
+        # Check if any index list is empty; if so, continue to next plane
         if any(len(idx) == 0 for idx in idxs):
             continue
         
@@ -198,7 +199,8 @@ def intersect_surfaces(meshes):
         inter = polys[0]
         for poly in polys[1:]:
             inter = inter.intersection(poly)
-        
+
+        # Process intersection result
         if inter.area > 0.001:
             if inter.type == "MultiPolygon" or inter.type == "GeometryCollection":
                 for geom in inter.geoms:
