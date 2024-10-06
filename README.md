@@ -1,3 +1,11 @@
+# This fork of **3DBM** includes optimizations for improved performance and compatibility with the latest version of PyVista (0.44.1).
+
+## Key Updates:
+
+- **Performance Improvements**: Enhanced speed and efficiency.
+- **Dependency Change**: Replaced the *PyMesh* library with ***Trimesh***, simplifying installation and setup. PyMesh has not been maintained for years, making it challenging to install.
+With these changes, 3DBM is now easier to use and ready to run!
+___
 # 3DBM
 
 3D Building Metrics. Elevating geometric analysis for urban morphology, solar potential, CFD etc to the next level 😉
