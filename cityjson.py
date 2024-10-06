@@ -55,7 +55,7 @@ def to_polydata(geom, vertices):
     f = [[len(r[0])] + r[0] for r in [f for f in boundaries]]
     faces = np.hstack(f)
 
-    mesh = pv.PolyData(vertices, faces, n_faces=len(boundaries))
+    mesh = pv.PolyData(vertices, faces)
 
     if "semantics" in geom:        
         semantics = geom["semantics"]
@@ -101,7 +101,7 @@ def to_triangulated_polydata(geom, vertices, clean=True):
         if "semantics" in geom:
             semantics.extend([semantic_types[fid] for _ in np.arange(t_count)])
     
-    mesh = pv.PolyData(points, triangles, n_faces=triangle_count)
+    mesh = pv.PolyData(points, triangles)
 
     if "semantics" in geom:
         mesh["semantics"] = semantics
