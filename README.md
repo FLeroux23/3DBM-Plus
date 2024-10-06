@@ -4,13 +4,11 @@
 
 ## Installation
 
-You need to install all dependencies first:
+You need to install all dependencies:
 
 ```
 pip install -r requirements.txt
 ```
-
-Then take your time and install [pymesh](https://pymesh.readthedocs.io/en/latest/installation.html).
 
 ## Wat is het?
 
