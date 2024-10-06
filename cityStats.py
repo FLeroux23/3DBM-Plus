@@ -489,7 +489,7 @@ def process_building(building,
         builder.add_index("circularity_2d", lambda: si.circularity(shape))
         builder.add_index("hemisphericality_3d", lambda: si.hemisphericality(fixed))
         builder.add_index("convexity_2d", lambda: shape.area / shape.convex_hull.area)
-        builder.add_index("convexity_3d", lambda: fixed.volume / ch_volume)
+        builder.add_index("convexity_3d", lambda: fixed.volume / ch_volume if ch_volume != 0 else 0)
         builder.add_index("fractality_2d", lambda: si.fractality_2d(shape))
         builder.add_index("fractality_3d", lambda: si.fractality_3d(fixed))
         builder.add_index("rectangularity_2d", lambda: shape.area / shape.minimum_rotated_rectangle.area)
