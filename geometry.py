@@ -25,7 +25,7 @@ def move_to_origin(mesh):
     """Moves the object to the origin"""
     pts = mesh.points
     t = np.min(pts, axis=0)
-    mesh.points = mesh.points - t
+    mesh.points -= t
 
     return mesh, t
 
@@ -41,7 +41,7 @@ def extrude(shape, min, max):
     # Transform to 0, 0, 0 to avoid precision issues
     pts = mesh.points
     t = np.mean(pts, axis=0)
-    mesh.points = mesh.points - t
+    mesh.points -= t
     
     mesh = mesh.extrude([0.0, 0.0, max - min], capping=True)
     
@@ -108,12 +108,10 @@ def cluster_meshes(meshes, threshold=0.1):
     
     # Compute the "absolute" plane params for every face of the two meshes
     planes = [face_planes(mesh) for mesh in meshes]
-    mesh_ids = [[m for _ in range(meshes[m].n_cells)] for m in range(n_meshes)]
     
     # Find the common planes between the two faces
     all_planes = np.concatenate(planes)
     all_labels, n_clusters = cluster_faces(all_planes, threshold)
-    areas = []
     
     labels = np.array_split(all_labels, [meshes[m].n_cells for m in range(n_meshes - 1)])
     
