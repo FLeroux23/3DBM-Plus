@@ -6,64 +6,94 @@ import pyvista as pv
 from shapely.geometry import Polygon, MultiPolygon
 
 def surface_normal(poly):
-    n = [0.0, 0.0, 0.0]
+    """Calculate the surface normal of a polygon defined by its vertices."""
+    
+    n = np.zeros(3)
+    
+    # Iterate through vertices to compute the normal
+    num_vertices = len(poly)
+    for i in range(num_vertices):
+        v_curr = poly[i]
+        v_next = poly[(i + 1) % num_vertices]
 
-    for i, v_curr in enumerate(poly):
-        v_next = poly[(i+1) % len(poly)]
         n[0] += (v_curr[1] - v_next[1]) * (v_curr[2] + v_next[2])
         n[1] += (v_curr[2] - v_next[2]) * (v_curr[0] + v_next[0])
         n[2] += (v_curr[0] - v_next[0]) * (v_curr[1] + v_next[1])
 
-    if all([c == 0 for c in n]):
-        raise ValueError("No normal. Possible colinear points!")
+    # Check for zero-length normal
+    if np.all(n == 0):
+        raise ValueError("No normal. Possible collinear points!")
 
-    normalised = [i/np.linalg.norm(n) for i in n]
-
-    return normalised
+    return (n / np.linalg.norm(n)).tolist()
 
 def axes_of_normal(normal):
     """Returns an x-axis and y-axis on a plane of the given normal"""
-    if normal[2] > 0.001 or normal[2] < -0.001:
-        x_axis = [1, 0, -normal[0]/normal[2]]
-    elif normal[1] > 0.001 or normal[1] < -0.001:
-        x_axis = [1, -normal[0]/normal[1], 0]
-    else:
-        x_axis = [-normal[1] / normal[0], 1, 0]
     
-    x_axis = x_axis / np.linalg.norm(x_axis)
-    y_axis = np.cross(normal, x_axis)
+    normal = np.array(normal)  # Ensure normal is a NumPy array for vector operations
+
+    if abs(normal[2]) > 0.001:  # Check z-component
+        x_axis = np.array([1, 0, -normal[0] / normal[2]])
+    elif abs(normal[1]) > 0.001:  # Check y-component
+        x_axis = np.array([1, -normal[0] / normal[1], 0])
+    else:  # Default case
+        x_axis = np.array([-normal[1] / normal[0], 1, 0])
+    
+    x_axis /= np.linalg.norm(x_axis)  # Normalize x_axis
+    y_axis = np.cross(normal, x_axis)  # Compute y_axis as cross product
 
     return x_axis, y_axis
 
 def project_2d(points, normal, origin=None):
+    """Project 3D points onto a 2D plane defined by the given normal vector"""
+    
     if origin is None:
         origin = points[0]
 
     x_axis, y_axis = axes_of_normal(normal)
-     
-    return [[np.dot(p - origin, x_axis), np.dot(p - origin, y_axis)] for p in points]
+    
+    # Convert points to a NumPy array for vectorized operations
+    points_array = np.array(points)
+
+    # Center points by the origin
+    centered_points = points_array - origin
+
+    # Compute 2D projections
+    projected = np.column_stack((
+        np.dot(centered_points, x_axis),
+        np.dot(centered_points, y_axis)
+    ))
+    
+    return projected.tolist()
 
 def triangulate(mesh):
     """Triangulates a mesh in the proper way"""
     
     final_mesh = pv.PolyData()
     n_cells = mesh.n_cells
-    for i in np.arange(n_cells):
-        if not mesh.cell_type(i) in [5, 6, 7, 9, 10]:
+
+    # Collect cells to be triangulated
+    for i in range(n_cells):
+        if not mesh.get_cell(i).type in {5, 6, 7, 9, 10}:
             continue
 
-        pts = mesh.cell_points(i)
+        pts = mesh.get_cell(i).points
         p = project_2d(pts, mesh.face_normals[i])
         result = earcut.triangulate_float32(p, [len(p)])
 
-        t_count = len(result.reshape(-1,3))
-        triangles = np.hstack([[3] + list(t) for t in result.reshape(-1,3)])
+        # Reshape and prepare triangles
+        triangles = result.reshape(-1, 3)
+        t_count = triangles.shape[0]
+        triangles_flat = np.hstack([[3] + list(t) for t in triangles])
         
-        new_mesh = pv.PolyData(pts, triangles)
+        # Create new mesh for the triangles
+        new_mesh = pv.PolyData(pts, triangles_flat)
+        
+        # Efficiently copy cell data
         for k in mesh.cell_data:
-            new_mesh[k] = [mesh.cell_data[k][i] for _ in np.arange(t_count)]
-        
-        final_mesh = final_mesh + new_mesh
+            new_mesh[k] = np.tile(mesh.cell_data[k][i], (t_count, 1))
+
+        # Concatenate the new mesh to the final mesh
+        final_mesh += new_mesh
     
     return final_mesh
 
@@ -99,22 +129,21 @@ def plane_params(normal, origin, rounding=2):
 
     d = -(a * x0 + b * y0 + c * z0)
 
-    if rounding >= 0:
-        d = round(d, rounding)
+    d = round(d, rounding) if rounding >= 0 else d
 
     return np.array([a, b, c, d])
 
 def project_mesh(mesh, normal, origin):
     """Project the faces of a mesh to the given plane"""
 
-    p = []
+    p = [None] * mesh.n_cells
+
     for i in range(mesh.n_cells):
-        pts = mesh.cell_points(i)
-        
+        pts = mesh.get_cell(i).points
         pts_2d = project_2d(pts, normal, origin)
         
-        p.append(Polygon(pts_2d))
-    
+        p[i] = Polygon(pts_2d)
+
     return MultiPolygon(p).buffer(0)
 
 def to_3d(points, normal, origin):
