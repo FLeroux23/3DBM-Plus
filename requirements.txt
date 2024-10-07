@@ -7,7 +7,7 @@ click
 pandas
 geopandas
 tqdm
-shapely===1.8.5
+shapely===2.0.6
 jupyter
 mapbox-earcut
 python-polylabel
