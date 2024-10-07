@@ -324,8 +324,10 @@ def spin_2d(shape, grid=None, density=1):
             grid = MultiPoint([grid])
     
     centroid = shape.centroid
+
+    grid_points = list(grid.geoms) if grid.geom_type == "MultiPoint" else [grid]
     
-    return 0.5 * (shape.area / math.pi) / np.mean([math.pow(centroid.distance(p), 2) for p in grid])
+    return 0.5 * (shape.area / math.pi) / np.mean([math.pow(centroid.distance(p), 2) for p in grid_points])
 
 def spin_3d(mesh, grid=None, density=1, check_surface=False):
     """Returns the cohesion index in 3D for a given mesh"""
@@ -358,8 +360,10 @@ def depth_2d(shape, grid=None, density=1):
 
         if grid.geom_type == "Point":
             grid = MultiPoint([grid])
-        
-    return 3 * np.mean([p.distance(shape.boundary) for p in grid]) / math.sqrt(shape.area / math.pi)
+
+    grid_points = list(grid.geoms) if grid.geom_type == "MultiPoint" else [grid]
+    
+    return 3 * np.mean([p.distance(shape.boundary) for p in grid_points]) / math.sqrt(shape.area / math.pi)
 
 def depth_3d(mesh, grid=None, density=1, check_surface=False):
     """Returns the depth index in 3D for a given mesh"""
