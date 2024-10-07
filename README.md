@@ -2,10 +2,10 @@
 
 ## Key Updates:
 
-- **Performance Improvements**: Enhanced speed and efficiency.
+- **Performance Improvements**: Enhanced speed and efficiency
 - **Dependency Change**:
-     - Replaced the *PyMesh* library with ***Trimesh***, simplifying installation and setup. PyMesh has not been maintained for years, making it challenging to install.
-     - The tool is now compatible with the latest version of ***PyVista*** (0.44.1).
+     - Replaced the *PyMesh* library with ***Trimesh***, simplifying installation and setup. PyMesh has not been maintained for years, making it challenging to install
+     - The tool is now compatible with the latest version of ***PyVista*** (0.44.1) and ***shapely*** (2.0.6)
 
 ## Usage recommendation:
 I highly recommend running with **multi-threading** using the **-j** argument, as it significantly speeds up the processing.
