@@ -22,6 +22,10 @@ pip install -r requirements.txt
 ___
 # 3DBM
 
+<p align="center">
+	<img src="./3dbm.png" width="200">
+</p>
+
 3D Building Metrics. Elevating geometric analysis for urban morphology, solar potential, CFD etc to the next level 😉
 
 
