@@ -1,3 +1,25 @@
+# This fork of **3DBM** includes optimizations for improved performance
+
+## Key Updates:
+
+- **Performance Improvements**: Enhanced speed and efficiency
+- **Dependency Change**:
+     - Replaced the *PyMesh* library with ***Trimesh***, simplifying installation and setup. PyMesh has not been maintained for years, making it challenging to install
+     - The tool is now compatible with the latest version of ***PyVista*** (0.44.1) and ***shapely*** (2.0.6)
+
+## Usage recommendation:
+I highly recommend running with **multi-threading** using the **-j** argument, as it significantly speeds up the processing.
+
+With these changes, 3DBM is now easier to use and ready to run!
+
+## Installation
+
+You need to install all dependencies by running the following command:
+
+```
+pip install -r requirements.txt
+```
+___
 # 3DBM
 
 <p align="center">
@@ -6,15 +28,6 @@
 
 3D Building Metrics. Elevating geometric analysis for urban morphology, solar potential, CFD etc to the next level 😉
 
-## Installation
-
-You need to install all dependencies first:
-
-```
-pip install -r requirements.txt
-```
-
-Then take your time and install [pymesh](https://pymesh.readthedocs.io/en/latest/installation.html).
 
 ## Wat is het?
 
