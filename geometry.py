@@ -202,7 +202,7 @@ def intersect_surfaces(meshes):
 
         # Process intersection result
         if inter.area > 0.001:
-            if inter.type == "MultiPolygon" or inter.type == "GeometryCollection":
+            if inter.type in {"MultiPolygon", "GeometryCollection"}:
                 for geom in inter.geoms:
                     if geom.type == "Polygon":
                         get_area_from_polygon(areas, geom, normal, origin)
