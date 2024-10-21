@@ -301,7 +301,7 @@ class StatValuesBuilder:
             self.__values[index_name] = "NC"
 
 def process_building(building,
-                     obj,
+                     building_id,
                      errors,
                      filter,
                      repair,
@@ -312,8 +312,8 @@ def process_building(building,
                      neighbours=[],
                      custom_indices=None):
 
-    if not filter is None and filter != obj:
-        return obj, None
+    if not filter is None and filter != building_id:
+        return building_id, None
 
     # TODO: Add options for all skip conditions below
 
@@ -323,7 +323,7 @@ def process_building(building,
 
     # Skip if no geometry
     if not "geometry" in building or len(building["geometry"]) == 0:
-        return obj, None
+        return building_id, None
 
     geom = building["geometry"][0]
     
@@ -332,13 +332,13 @@ def process_building(building,
     try:
         tri_mesh = cityjson.to_triangulated_polydata(geom, vertices).clean()
     except:
-        print(f"{obj} geometry parsing crashed! Omitting...")
-        return obj, {"type": building["type"]}
+        print(f"{building_id} geometry parsing crashed! Omitting...")
+        return building_id, {"type": building["type"]}
 
     tri_mesh, t = geometry.move_to_origin(tri_mesh)
 
     if plot_buildings:
-        print(f"Plotting {obj}")
+        print(f"Plotting {building_id}")
         tri_mesh.plot(show_grid=True)
 
     # get_surface_plot(dataset, title=obj)
@@ -385,16 +385,18 @@ def process_building(building,
             ground_z = mesh.bounds[4]
     
     if len(ground_points) > 0:
-        shape = cityjson.to_shapely(geom, vertices)
+        shape_2d, shape_3d = cityjson.to_shapely(geom, vertices)
     else:
-        shape = cityjson.to_shapely(geom, vertices, ground_only=False)
+        shape_2d, shape_3d = cityjson.to_shapely(geom, vertices, ground_only=False)
 
-    shape_area = shape.area
+    shape_2d_area = shape_2d.area
                          
     aabb_volume = boundingbox_volume(points)
     ch_volume = convexhull_volume(points)
+    
     # Compute OBB with shapely
-    obb_2d = cityjson.to_shapely(geom, vertices, ground_only=False).minimum_rotated_rectangle
+    obb_2d, _ = cityjson.to_shapely(geom, vertices, ground_only=False)
+    obb_2d = obb_2d.minimum_rotated_rectangle
     min_z = np.min(mesh.clean().points[:, 2])
     max_z = np.max(mesh.clean().points[:, 2])
     obb = geometry.extrude(obb_2d, min_z, max_z)
@@ -412,7 +414,7 @@ def process_building(building,
         "convex_hull_volume": ch_volume,
         "obb_volume": obb.volume,
         "aabb_volume": aabb_volume,
-        "footprint_perimeter": shape.length,
+        "footprint_perimeter": shape_2d.length,
         "obb_width": S,
         "obb_length": L,
         "surface_area": mesh.area,
@@ -438,7 +440,7 @@ def process_building(building,
         "errors": str(errors),
         "valid": len(errors) == 0,
         "hole_count": tri_mesh.n_open_edges,
-        "geometry": shape
+        "geometry": shape_2d
     }
 
     if custom_indices is None or len(custom_indices) > 0:
@@ -473,46 +475,46 @@ def process_building(building,
 
         builder = StatValuesBuilder(values, custom_indices)
 
-        builder.add_index("2d_grid_point_count", lambda: len(si.create_grid_2d(shape, density=density_2d)))
+        builder.add_index("2d_grid_point_count", lambda: len(si.create_grid_2d(shape_2d, density=density_2d)))
         builder.add_index("3d_grid_point_count", lambda: grid_point_count)
-        builder.add_index("circularity_2d", lambda: si.circularity(shape))
+        builder.add_index("circularity_2d", lambda: si.circularity(shape_2d))
         builder.add_index("hemisphericality_3d", lambda: si.hemisphericality(fixed))
-        builder.add_index("convexity_2d", lambda: shape_area / shape.convex_hull.area)
+        builder.add_index("convexity_2d", lambda: shape_2d_area / shape_2d.convex_hull.area)
         builder.add_index("convexity_3d", lambda: fixed.volume / ch_volume if ch_volume != 0 else 0)
-        builder.add_index("fractality_2d", lambda: si.fractality_2d(shape))
+        builder.add_index("fractality_2d", lambda: si.fractality_2d(shape_2d))
         builder.add_index("fractality_3d", lambda: si.fractality_3d(fixed))
-        builder.add_index("rectangularity_2d", lambda: shape_area / shape.minimum_rotated_rectangle.area)
+        builder.add_index("rectangularity_2d", lambda: shape_2d_area / obb_2d.area)
         builder.add_index("rectangularity_3d", lambda: fixed.volume / obb.volume)
-        builder.add_index("squareness_2d", lambda: si.squareness(shape))
+        builder.add_index("squareness_2d", lambda: si.squareness(shape_2d))
         builder.add_index("cubeness_3d", lambda: si.cubeness(fixed))
         builder.add_index("horizontal_elongation", lambda: si.elongation(S, L))
         builder.add_index("min_vertical_elongation", lambda: si.elongation(L, height_stats["Max"]))
         builder.add_index("max_vertical_elongation", lambda: si.elongation(S, height_stats["Max"]))
-        builder.add_index("form_factor_3D", lambda: shape_area / math.pow(fixed.volume, 2/3) if fixed.volume != 0 else 0)
-        builder.add_index("equivalent_rectangularity_index_2d", lambda: si.equivalent_rectangular_index(shape))
+        builder.add_index("form_factor_3D", lambda: shape_2d_area / math.pow(fixed.volume, 2/3) if fixed.volume != 0 else 0)
+        builder.add_index("equivalent_rectangularity_index_2d", lambda: si.equivalent_rectangular_index(shape_2d))
         builder.add_index("equivalent_prism_index_3d", lambda: si.equivalent_prism_index(fixed, obb))
-        builder.add_index("proximity_index_2d_", lambda: si.proximity_2d(shape, density=density_2d))
+        builder.add_index("proximity_index_2d_", lambda: si.proximity_2d(shape_2d, density=density_2d))
         builder.add_index("proximity_index_3d", lambda: si.proximity_3d(tri_mesh, grid, density=density_3d) if valid_grid else "NA")
-        builder.add_index("exchange_index_2d", lambda: si.exchange_2d(shape))
+        builder.add_index("exchange_index_2d", lambda: si.exchange_2d(shape_2d))
         builder.add_index("exchange_index_3d", lambda: si.exchange_3d(tri_mesh, density=density_3d))
-        builder.add_index("spin_index_2d", lambda: si.spin_2d(shape, density=density_2d))
+        builder.add_index("spin_index_2d", lambda: si.spin_2d(shape_2d, density=density_2d))
         builder.add_index("spin_index_3d", lambda: si.spin_3d(tri_mesh, grid, density=density_3d) if valid_grid else "NA")
-        builder.add_index("perimeter_index_2d", lambda: si.perimeter_index(shape))
+        builder.add_index("perimeter_index_2d", lambda: si.perimeter_index(shape_2d))
         builder.add_index("circumference_index_3d", lambda: si.circumference_index_3d(tri_mesh))
-        builder.add_index("depth_index_2d", lambda: si.depth_2d(shape, density=density_2d))
+        builder.add_index("depth_index_2d", lambda: si.depth_2d(shape_2d, density=density_2d))
         builder.add_index("depth_index_3d", lambda: si.depth_3d(tri_mesh, density=density_3d) if valid_grid else "NA")
-        builder.add_index("girth_index_2d", lambda: si.girth_2d(shape))
+        builder.add_index("girth_index_2d", lambda: si.girth_2d(shape_2d))
         builder.add_index("girth_index_3d", lambda: si.girth_3d(tri_mesh, grid, density=density_3d) if valid_grid else "NA")
-        builder.add_index("dispersion_index_2d", lambda: si.dispersion_2d(shape, density=density_2d))
+        builder.add_index("dispersion_index_2d", lambda: si.dispersion_2d(shape_2d, density=density_2d))
         builder.add_index("dispersion_index_3d", lambda: si.dispersion_3d(tri_mesh, grid, density=density_3d) if valid_grid else "NA")
-        builder.add_index("range_index_2d", lambda: si.range_2d(shape))
+        builder.add_index("range_index_2d", lambda: si.range_2d(shape_2d))
         builder.add_index("range_index_3d", lambda: si.range_3d(tri_mesh))
-        builder.add_index("roughness_index_2d", lambda: si.roughness_index_2d(shape, density=density_2d))
+        builder.add_index("roughness_index_2d", lambda: si.roughness_index_2d(shape_2d, density=density_2d))
         builder.add_index("roughness_index_3d", lambda: si.roughness_index_3d(tri_mesh, grid, density_2d) if valid_grid else "NA")
         builder.add_index("shared_walls_area", lambda: shared_area)
         builder.add_index("closest_distance", lambda: closest_distance)
 
-    return obj, values
+    return building_id, values
 
 # Assume semantic surfaces
 @click.command()
