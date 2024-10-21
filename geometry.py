@@ -56,14 +56,18 @@ def extrude(shape, min, max):
 
     return mesh
 
-def area_by_surface(mesh, tri_mesh=None):
+def area_by_surface(mesh, sloped_angle_threshold=3, tri_mesh=None):
     """Compute the area per semantic surface"""
 
+    sloped_threshold = np.cos(np.radians(sloped_angle_threshold))
+    
     # Initialize dictionaries for area, point count, and surface count
     area = {
         "GroundSurface": 0,
         "WallSurface": 0,
-        "RoofSurface": 0
+        "RoofSurface": 0,
+        "RoofSurfaceFlat": 0,
+        "RoofSurfaceSloped": 0
     }
 
     point_count = {
@@ -75,7 +79,9 @@ def area_by_surface(mesh, tri_mesh=None):
     surface_count = {
         "GroundSurface": 0,
         "WallSurface": 0,
-        "RoofSurface": 0
+        "RoofSurface": 0,
+        "RoofSurfaceFlat": 0,
+        "RoofSurfaceSloped": 0
     }
 
     # Compute the triangulated surfaces to fix issues with areas
@@ -90,14 +96,24 @@ def area_by_surface(mesh, tri_mesh=None):
         points_per_cell = np.array([mesh.get_cell(i).n_points for i in range(mesh.number_of_cells)])
 
         # Process each surface type
-        for surface_type in area.keys():
-            # Create boolean index arrays for triangle and face semantics
-            triangle_idxs = tri_mesh.cell_data["semantics"] == surface_type
-            face_idxs = mesh.cell_data["semantics"] == surface_type
-            
-            area[surface_type] = surface_areas[triangle_idxs].sum()
-            point_count[surface_type] = points_per_cell[face_idxs].sum()
-            surface_count[surface_type] = face_idxs.sum()
+        for surface_type in ["GroundSurface", "WallSurface", "RoofSurface"]:
+            triangle_idxs_mask = [s == surface_type for s in tri_mesh.cell_data["semantics"]]
+            triangle_idxs = [i for i,s in enumerate(tri_mesh.cell_data["semantics"]) if s == surface_type]
+
+            if surface_type == "RoofSurface":
+                normals = sized.cell_normals[triangle_idxs]
+                dot_products = normals.dot([0, 0, 1])
+                sloped_mask = dot_products < sloped_threshold
+
+                area["RoofSurfaceSloped"] += area_data[triangle_idxs][sloped_mask].sum()
+                area["RoofSurfaceFlat"] += area_data[triangle_idxs][~sloped_mask].sum()
+                area["RoofSurface"] += area_data[triangle_idxs].sum()
+            else:
+                area[surface_type] = area_data[triangle_idxs_mask].sum()
+                
+            face_idxs = [s == surface_type for s in mesh.cell_data["semantics"]]
+            point_count[surface_type] = sum(points_per_cell[face_idxs])
+            surface_count[surface_type] = sum(face_idxs)
 
     return area, point_count, surface_count
 
