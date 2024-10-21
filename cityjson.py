@@ -5,17 +5,20 @@ from shapely.geometry import Polygon, MultiPolygon
 from helpers.geometry import project_2d, surface_normal, triangulate, triangulate_polygon
 import pyvista as pv
 
-def get_surface_boundaries(geom):
+def get_surface_boundaries(geom, dimension="2d"):
     """Returns the boundaries for all surfaces"""
 
     geom_type = geom["type"]
     
-    if geom_type in {"MultiSurface", "CompositeSurface"}:
+    if geom_type in ["MultiSurface", "CompositeSurface"]:
         return geom["boundaries"]
     elif geom_type == "Solid":
-        return geom["boundaries"][0]
-    
-    raise ValueError("Geometry not supported")
+        if dimension == "2d":
+            return geom["boundaries"][0]
+        else:
+            return geom["boundaries"]
+    else:
+        raise ValueError("Geometry not supported")
 
 def get_points(geom, verts):
     """Return the points of the geometry."""
@@ -30,7 +33,7 @@ def get_points(geom, verts):
 def to_shapely(geom, vertices, ground_only=True):
     """Returns a shapely geometry of the footprint from a CityJSON geometry"""
 
-    boundaries = get_surface_boundaries(geom)
+    boundaries_2d = get_surface_boundaries(geom)
 
     if ground_only and "semantics" in geom:
         semantics = geom["semantics"]
@@ -39,11 +42,22 @@ def to_shapely(geom, vertices, ground_only=True):
             values = values[0]
         
         ground_idxs = [semantics["surfaces"][i]["type"] == "GroundSurface" for i in values]
-        boundaries = np.array(boundaries, dtype=object)[ground_idxs]
+        boundaries_2d = np.array(boundaries, dtype=object)[ground_idxs]
     
-    shape = MultiPolygon([Polygon([vertices[v] for v in boundary[0]]) for boundary in boundaries])
-    
-    return shape.buffer(0)
+    shape_2d = MultiPolygon([Polygon([vertices[v] for v in boundary[0]]) for boundary in boundaries_2d])
+
+    boundaries_3d = get_surface_boundaries(geom, "3d")
+    shapes_3d = []
+
+    for boundary_set in boundaries_3d:
+        for boundary in boundary_set:
+            # Extract vertices including z-coordinates
+            poly_3d = Polygon([(vertices[v][0], vertices[v][1], vertices[v][2]) for v in boundary[0]])
+            shapes_3d.append(poly_3d)
+
+    shape_3d = MultiPolygon(shapes_3d)
+
+    return shape_2d.buffer(0), shape_3d
 
 def to_polydata(geom, vertices):
     """Returns the polydata mesh from a CityJSON geometry"""
