@@ -461,7 +461,8 @@ def process_building(building, building_id,
         "valid": len(errors) == 0,
         "hole_count": tri_mesh.n_open_edges,
         # --- Geometry
-        "geometry": shape_2d
+        "geometry_2d": shape_2d,
+        "geometry_3d": shape_3d
     }
 
     if indices_list is None or len(indices_list) > 0:
@@ -537,12 +538,12 @@ def process_building(building, building_id,
 
     return building_id, values
 
-def city_stats(input, output, gpkg,
-                  filter,
-                  repair, without_indices,
-                  density_2d, density_3d,
-                  val3dity_report, break_on_error, plot_buildings,
-                  single_threaded, jobs):
+def city_stats(input,
+               filter,
+               repair, without_indices,
+               density_2d, density_3d,
+               val3dity_report, break_on_error, plot_buildings,
+               single_threaded, jobs):
     
     cm = json.load(input)
     original_cm = deepcopy(cm)
@@ -656,7 +657,7 @@ def city_stats(input, output, gpkg,
 
     return df, original_cm
         
-def process_files(input, output, gpkg,
+def process_files(input, output_csv, output_gpkg,
                   filter,
                   repair, without_indices,
                   density_2d, density_3d,
@@ -675,22 +676,31 @@ def process_files(input, output, gpkg,
             crs1 = crs.split('+')[0]
             crs2 = crs.split('+')[1]
             crs = "EPSG:" + crs1 + "+" + "EPSG:" + crs2
-                      
-    if output is not None:
-        click.echo("Writing output...")
-        df.to_csv(output)
     
-    if gpkg is not None:
+    if output_gpkg is not None:
+        # Export 2D GPKG
         gdf = gpd.GeoDataFrame(df, geometry="geometry_2d")
-        output_gpkg_2d = gpkg.split(".")[0] + "_2D." + gpkg.split(".")[1]
+        gdf = gdf.drop(columns='geometry_3d')
+        output_gpkg_2d = output_gpkg.split(".")[0] + "_2D." + output_gpkg.split(".")[1]
         gdf.to_file(output_gpkg_2d, crs=crs, driver="GPKG", engine="fiona")
 
+        # Export 3D GPKG
+        gdf = gpd.GeoDataFrame(df, geometry="geometry_3d")
+        gdf = gdf.drop(columns='geometry_2d')
+        output_gpkg_3d = output_gpkg.split(".")[0] + "_3D." + output_gpkg.split(".")[1]
+        gdf.to_file(output_gpkg_3d, crs=crs, driver="GPKG", engine="fiona")
 
+    df = df.drop(columns=['geometry_2d','geometry_3d'])
+
+    if output_csv is not None:
+        click.echo("Writing output...")
+        df.to_csv(output_csv)
+        
 # Assume semantic surfaces
 @click.command()
 @click.argument("input", type=click.File("rb"))
-@click.option('-o', '--output', type=click.File("wb"))
-@click.option('-g', '--gpkg')
+@click.option('-c', '--output-csv', type=click.File("wb"))
+@click.option('-g', '--output-gpkg')
 @click.option('-v', '--val3dity-report', type=click.File("rb"))
 @click.option('-f', '--filter')
 @click.option('-r', '--repair', flag_value=True)
@@ -701,14 +711,14 @@ def process_files(input, output, gpkg,
 @click.option('-j', '--jobs', default=1)
 @click.option('--density-2d', default=1.0)
 @click.option('--density-3d', default=1.0)
-def main(input, output, gpkg,
+def main(input, output_csv, output_gpkg,
          filter,
          repair, without_indices,
          density_2d, density_3d,
          val3dity_report, break_on_error, plot_buildings,
          single_threaded, jobs):
 
-    process_files(input=input, output=output, gpkg=gpkg,
+    process_files(input=input, output_csv=output_csv, output_gpkg=output_gpkg,
                   filter=filter,
                   repair=repair, without_indices=without_indices,
                   density_2d=density_2d, density_3d=density_3d,
