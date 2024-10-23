@@ -313,17 +313,13 @@ class StatValuesBuilder:
         else:
             self.__values[index_name] = "NC"
 
-def process_building(building,
-                     building_id,
-                     errors,
+def process_building(building, building_id,
                      filter,
                      repair,
-                     plot_buildings,
-                     density_2d,
-                     density_3d,
-                     vertices,
-                     neighbours=[],
-                     custom_indices=None):
+                     density_2d, density_3d,
+                     plot_buildings, errors,
+                     vertices, neighbours=[],
+                     indices_list=None):
 
     if not filter is None and filter != building_id:
         return building_id, None
@@ -418,45 +414,55 @@ def process_building(building,
     S, L = si.get_box_dimensions(obb_2d)
 
     values = {
+        # --- Identifiers
         "type": building["type"],
         "lod": geom["lod"],
+        # --- Point count
         "point_count": len(points),
         "unique_point_count": fixed.n_points,
+        "ground_point_count": point_count["GroundSurface"],
+        "wall_point_count": point_count["WallSurface"],
+        "roof_point_count": point_count["RoofSurface"],
+        # --- Surface count
         "surface_count": len(cityjson.get_surface_boundaries(geom)),
-        "actual_volume": fixed.volume,
-        "convex_hull_volume": ch_volume,
-        "obb_volume": obb.volume,
-        "aabb_volume": aabb_volume,
-        "footprint_perimeter": shape_2d.length,
-        "obb_width": S,
-        "obb_length": L,
+        "ground_surface-count": surface_count["GroundSurface"],
+        "wall_surface_count": surface_count["WallSurface"],
+        "roof_surface_count": surface_count["RoofSurface"],
+        # --- Height
+        "ground_Z": ground_z,
+        "min_Z": height_stats["Min"],
+        "max_Z": height_stats["Max"],
+        "height_range": height_stats["Range"],
+        "mean_Z": height_stats["Mean"],
+        "median_Z": height_stats["Median"],
+        "mode_Z": height_stats["Mode"] if height_stats["ModeStatus"] == "Y" else "NA",
+        "std_Z": height_stats["Std"],
+        # --- Area
         "surface_area": mesh.area,
         "ground_area": area["GroundSurface"],
         "wall_area": area["WallSurface"],
         "roof_area": area["RoofSurface"],
-        "ground_point_count": point_count["GroundSurface"],
-        "wall_point_count": point_count["WallSurface"],
-        "roof_point_count": point_count["RoofSurface"],
-        "ground_surface-count": surface_count["GroundSurface"],
-        "wall_surface_count": surface_count["WallSurface"],
-        "roof_surface_count": surface_count["RoofSurface"],
-        "max_Z": height_stats["Max"],
-        "min_Z": height_stats["Min"],
-        "height_range": height_stats["Range"],
-        "mean_Z": height_stats["Mean"],
-        "median_Z": height_stats["Median"],
-        "std_Z": height_stats["Std"],
-        "mode_Z": height_stats["Mode"] if height_stats["ModeStatus"] == "Y" else "NA",
-        "ground_Z": ground_z,
+        # --- Volume
+        "actual_volume": fixed.volume,
+        "convex_hull_volume": ch_volume,
+        "obb_volume": obb.volume,
+        "aabb_volume": aabb_volume,
+        # --- Dimensions
+        "footprint_perimeter": shape_2d.length,
+        "obb_width": S,
+        "obb_length": L,
+        # --- Plot     
         "orientation_values": str(bin_count),
         "orientation_edges": str(bin_edges),
+        # --- Errors
         "errors": str(errors),
         "valid": len(errors) == 0,
         "hole_count": tri_mesh.n_open_edges,
+        # --- Geometry
         "geometry": shape_2d
     }
 
-    if custom_indices is None or len(custom_indices) > 0:
+    if indices_list is None or len(indices_list) > 0:
         voxel = pv.voxelize(tri_mesh, density=density_3d, check_surface=False)
         grid = voxel.cell_centers().points
         grid_point_count = len(grid)
@@ -544,19 +550,12 @@ def process_building(building,
 @click.option('-j', '--jobs', default=1)
 @click.option('--density-2d', default=1.0)
 @click.option('--density-3d', default=1.0)
-def main(input,
-         output,
-         gpkg,
-         val3dity_report,
+def main(input, output, gpkg,
          filter,
-         repair,
-         plot_buildings,
-         without_indices,
-         single_threaded,
-         break_on_error,
-         jobs,
-         density_2d,
-         density_3d):
+         repair, without_indices,
+         density_2d, density_3d,
+         val3dity_report, break_on_error, plot_buildings,
+         single_threaded, jobs):
     
     cm = json.load(input)
 
@@ -594,7 +593,9 @@ def main(input,
     r = rtree.index.Index(tree_generator_function(cm, vertices), properties=p)
 
     if single_threaded or jobs == 1:
-        for obj in tqdm(cm["CityObjects"]):
+        for cityobject_id in tqdm(cm["CityObjects"]):
+            cityobject = cm["CityObjects"][cityobject_id]
+            
             errors = get_errors_from_report(report, obj, cm)
             
             neighbours = get_neighbours(cm, obj, r, verts)
@@ -602,17 +603,12 @@ def main(input,
             indices_list = [] if without_indices else None
             
             try:
-                obj, vals = process_building(cm["CityObjects"][obj],
-                                obj,
-                                errors,
-                                filter,
-                                repair,
-                                plot_buildings,
-                                density_2d,
-                                density_3d,
-                                vertices,
-                                neighbours,
-                                indices_list)
+                obj, vals = process_building(building=cityobject, building_id=cityobject_id,
+                                             vertices=vertices, neighbours=neighbours,
+                                             filter=filter,
+                                             repair=repair, indices_list=indices_list,
+                                             density_2d=density_2d, density_3d=density_3d,
+                                             plot_buildings, errors=errors)
                 if not vals is None:
                     stats[obj] = vals
             except Exception as e:
@@ -630,25 +626,23 @@ def main(input,
             with tqdm(total=num_objs) as progress:
                 futures = []
 
-                for obj in cm["CityObjects"]:
-                    errors = get_errors_from_report(report, obj, cm)
+                for cityobject_id in cm["CityObjects"]:
+                    cityobject = cm["CityObjects"][cityobject_id]
+                    
+                    errors = get_errors_from_report(report, cityobject_id, cm)
 
-                    neighbours = get_neighbours(cm, obj, r, verts)
+                    neighbours = get_neighbours(cm, cityobject_id, r, verts)
 
                     indices_list = [] if without_indices else None
 
                     future = pool.submit(process_building,
-                                        cm["CityObjects"][obj],
-                                        obj,
-                                        errors,
-                                        filter,
-                                        repair,
-                                        plot_buildings,
-                                        density_2d,
-                                        density_3d,
-                                        vertices,
-                                        neighbours,
-                                        indices_list)
+                                        building=cityobject, building_id=cityobject_id,
+                                        vertices=vertices, neighbours=neighbours,
+                                        filter=filter,
+                                        repair=repair, indices_list=indices_list,
+                                        density_2d=density_2d, density_3d=density_3d,
+                                        plot_buildings, errors=errors)
+                    
                     future.add_done_callback(lambda p: progress.update())
                     futures.append(future)
                 
