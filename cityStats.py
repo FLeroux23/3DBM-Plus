@@ -166,21 +166,34 @@ def compute_stats(values, percentile = 90, percentage = 75):
     """
     Returns the stats (mean, median, max, min, range etc.) for a set of values.
     """
-    hDic = {'Mean': np.mean(values), 'Median': np.median(values),
-    'Max': max(values), 'Min': min(values), 'Range': (max(values) - min(values)),
-    'Std': np.std(values)}
-    m = max([values.count(a) for a in values])
-    if percentile:
-        hDic['Percentile'] = np.percentile(values, percentile)
-    if percentage:
-        hDic['Percentage'] = (percentage/100.0) * hDic['Range'] + hDic['Min']
-    if m>1:
-        hDic['ModeStatus'] = 'Y'
-        modeCount = [x for x in values if values.count(x) == m][0]
-        hDic['Mode'] = modeCount
-    else:
-        hDic['ModeStatus'] = 'N'
-        hDic['Mode'] = np.mean(values)
+    mean = np.mean(values)
+    median = np.median(values)
+    max_val = np.max(values)
+    min_val = np.min(values)
+    range_val = max_val - min_val
+    std_dev = np.std(values)
+    
+    percentile = np.percentile(values, percentile)
+    percentage = (percentage/100.0) * range_val + min_val
+    
+    mode_result = stats.mode(values, keepdims=False)
+    mode_values = mode_result.mode
+    mode_count = mode_result.count
+    
+    hDic = {
+        'Mean': mean,
+        'Median': median,
+        'Max': max_val,
+        'Min': min_val,
+        'Range': range_val,
+        'Std': std_dev,
+        'Percentile': percentile,
+        'Percentage': percentage,
+        'Mode': mode_values if mode_count > 1 else mean,
+        'ModeStatus': 'Y' if mode_count > 1 else 'N'
+
+    }
+        
     return hDic
 
 def add_value(dict, key, value):
@@ -256,10 +269,10 @@ def tree_generator_function(cm, verts):
         xmin, xmax, ymin, ymax, zmin, zmax = cityjson.get_bbox(obj["geometry"][0], verts)
         yield (i, (xmin, ymin, zmin, xmax, ymax, zmax), objid)
 
-def get_neighbours(cm, obj, r, verts):
+def get_neighbours(cm, building_id, r, verts):
     """Return the neighbours of the given building"""
 
-    building = cm["CityObjects"][obj]
+    building = cm["CityObjects"][building_id]
 
     if len(building["geometry"]) == 0:
         return []
@@ -274,10 +287,10 @@ def get_neighbours(cm, obj, r, verts):
                                     ymax,
                                     zmax),
                                     objects=True)
-            if n.object != obj]
+            if n.object != building_id]
 
     if len(objids) == 0:
-        objids = [n.object for n in r.nearest((xmin, ymin, zmin, xmax, ymax, zmax), 5, objects=True) if n.object != obj]
+        objids = [n.object for n in r.nearest((xmin, ymin, zmin, xmax, ymax, zmax), 5, objects=True) if n.object != building_id]
 
     return [cm["CityObjects"][objid]["geometry"][0] for objid in objids]
 
