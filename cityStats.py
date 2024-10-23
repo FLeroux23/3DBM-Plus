@@ -1,15 +1,17 @@
 import json
 import math
 from concurrent.futures import ProcessPoolExecutor
+from copy import deepcopy
 
 import click
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import geopandas
+import geopandas as gpd
 import pyvista as pv
 import rtree.index
 import scipy.spatial as ss
+from scipy import stats
 from pymeshfix import MeshFix
 from tqdm import tqdm
 
@@ -535,29 +537,15 @@ def process_building(building, building_id,
 
     return building_id, values
 
-# Assume semantic surfaces
-@click.command()
-@click.argument("input", type=click.File("rb"))
-@click.option('-o', '--output', type=click.File("wb"))
-@click.option('-g', '--gpkg')
-@click.option('-v', '--val3dity-report', type=click.File("rb"))
-@click.option('-f', '--filter')
-@click.option('-r', '--repair', flag_value=True)
-@click.option('-p', '--plot-buildings', flag_value=True)
-@click.option('--without-indices', flag_value=True)
-@click.option('-s', '--single-threaded', flag_value=True)
-@click.option('-b', '--break-on-error', flag_value=True)
-@click.option('-j', '--jobs', default=1)
-@click.option('--density-2d', default=1.0)
-@click.option('--density-3d', default=1.0)
-def main(input, output, gpkg,
-         filter,
-         repair, without_indices,
-         density_2d, density_3d,
-         val3dity_report, break_on_error, plot_buildings,
-         single_threaded, jobs):
+def city_stats(input, output, gpkg,
+                  filter,
+                  repair, without_indices,
+                  density_2d, density_3d,
+                  val3dity_report, break_on_error, plot_buildings,
+                  single_threaded, jobs):
     
     cm = json.load(input)
+    original_cm = deepcopy(cm)
 
     if "transform" in cm:
         s = cm["transform"]["scale"]
@@ -666,16 +654,66 @@ def main(input, output, gpkg,
     df = pd.DataFrame.from_dict(stats, orient="index")
     df.index.name = "id"
 
-    if output is None:
-        #print(df)
-        pass
-    else:
+    return df, original_cm
+        
+def process_files(input, output, gpkg,
+                  filter,
+                  repair, without_indices,
+                  density_2d, density_3d,
+                  val3dity_report, break_on_error, plot_buildings,
+                  single_threaded, jobs):
+
+    df, cm = city_stats(input=input,
+                        filter=filter,
+                        repair=repair, without_indices=without_indices,
+                        density_2d=density_2d, density_3d=density_3d,
+                        val3dity_report=val3dity_report, break_on_error=break_on_error, plot_buildings=plot_buildings,
+                        single_threaded=single_threaded, jobs=jobs)
+
+    crs = cm["metadata"]["referenceSystem"].split('/')[-1]
+        if "+" in crs:
+            crs1 = crs.split('+')[0]
+            crs2 = crs.split('+')[1]
+            crs = "EPSG:" + crs1 + "+" + "EPSG:" + crs2
+                      
+    if output is not None:
         click.echo("Writing output...")
         df.to_csv(output)
     
-    if not gpkg is None:
-        gdf = geopandas.GeoDataFrame(df, geometry="geometry")
-        gdf.to_file(gpkg, driver="GPKG")
+    if gpkg is not None:
+        gdf = gpd.GeoDataFrame(df, geometry="geometry_2d")
+        output_gpkg_2d = gpkg.split(".")[0] + "_2D." + gpkg.split(".")[1]
+        gdf.to_file(output_gpkg_2d, crs=crs, driver="GPKG", engine="fiona")
+
+
+# Assume semantic surfaces
+@click.command()
+@click.argument("input", type=click.File("rb"))
+@click.option('-o', '--output', type=click.File("wb"))
+@click.option('-g', '--gpkg')
+@click.option('-v', '--val3dity-report', type=click.File("rb"))
+@click.option('-f', '--filter')
+@click.option('-r', '--repair', flag_value=True)
+@click.option('-p', '--plot-buildings', flag_value=True)
+@click.option('--without-indices', flag_value=True)
+@click.option('-s', '--single-threaded', flag_value=True)
+@click.option('-b', '--break-on-error', flag_value=True)
+@click.option('-j', '--jobs', default=1)
+@click.option('--density-2d', default=1.0)
+@click.option('--density-3d', default=1.0)
+def main(input, output, gpkg,
+         filter,
+         repair, without_indices,
+         density_2d, density_3d,
+         val3dity_report, break_on_error, plot_buildings,
+         single_threaded, jobs):
+
+    process_files(input=input, output=output, gpkg=gpkg,
+                  filter=filter,
+                  repair=repair, without_indices=without_indices,
+                  density_2d=density_2d, density_3d=density_3d,
+                  val3dity_report=val3dity_report, break_on_error=break_on_error, plot_buildings=plot_buildings,
+                  single_threaded=single_threaded, jobs=jobs)
 
 if __name__ == "__main__":
     main()
