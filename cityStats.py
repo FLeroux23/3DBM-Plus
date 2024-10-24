@@ -330,7 +330,7 @@ def process_building(building, building_id,
 
     # Skip if type is not Building or Building part
     if not building["type"] in ["Building", "BuildingPart"]:
-        return obj, None
+        return building_id, None
 
     # Skip if no geometry
     if not "geometry" in building or len(building["geometry"]) == 0:
@@ -585,9 +585,9 @@ def city_stats(input,
         for cityobject_id in tqdm(cm["CityObjects"]):
             cityobject = cm["CityObjects"][cityobject_id]
             
-            errors = get_errors_from_report(report, obj, cm)
+            errors = get_errors_from_report(report, cityobject_id, cm)
             
-            neighbours = get_neighbours(cm, obj, r, verts)
+            neighbours = get_neighbours(cm, cityobject_id, r, verts)
 
             indices_list = [] if without_indices else None
             
@@ -597,11 +597,11 @@ def city_stats(input,
                                              filter=filter,
                                              repair=repair, indices_list=indices_list,
                                              density_2d=density_2d, density_3d=density_3d,
-                                             plot_buildings, errors=errors)
+                                             plot_buildings=plot_buildings, errors=errors)
                 if not vals is None:
                     stats[obj] = vals
             except Exception as e:
-                print(f"Problem with {obj}")
+                print(f"Problem with {cityobject_id}")
                 if break_on_error:
                     raise e
 
@@ -630,7 +630,7 @@ def city_stats(input,
                                         filter=filter,
                                         repair=repair, indices_list=indices_list,
                                         density_2d=density_2d, density_3d=density_3d,
-                                        plot_buildings, errors=errors)
+                                        plot_buildings=plot_buildings, errors=errors)
                     
                     future.add_done_callback(lambda p: progress.update())
                     futures.append(future)
@@ -642,7 +642,7 @@ def city_stats(input,
                         if not vals is None:
                             stats[obj] = vals
                     except Exception as e:
-                        print(f"Problem with {obj}")
+                        print(f"Problem with {cityobject_id}")
                         if break_on_error:
                             raise e
 
@@ -672,10 +672,10 @@ def process_files(input, output_csv, output_gpkg,
                         single_threaded=single_threaded, jobs=jobs)
 
     crs = cm["metadata"]["referenceSystem"].split('/')[-1]
-        if "+" in crs:
-            crs1 = crs.split('+')[0]
-            crs2 = crs.split('+')[1]
-            crs = "EPSG:" + crs1 + "+" + "EPSG:" + crs2
+    if "+" in crs:
+        crs1 = crs.split('+')[0]
+        crs2 = crs.split('+')[1]
+        crs = "EPSG:" + crs1 + "+" + "EPSG:" + crs2
     
     if output_gpkg is not None:
         # Export 2D GPKG
