@@ -58,7 +58,7 @@ def to_shapely(geom, vertices, ground_only=True):
     
         shape_3d = MultiPolygon(shapes_3d)
     else:
-        shape_3d = []
+        shape_3d = None
         
     return shape_2d.buffer(0), shape_3d
 
