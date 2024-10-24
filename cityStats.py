@@ -495,6 +495,7 @@ def process_building(building, building_id,
         else:
             closest_distance = "NA"
 
+        custom_indices = []
         builder = StatValuesBuilder(values, custom_indices)
 
         builder.add_index("2d_grid_point_count", lambda: len(si.create_grid_2d(shape_2d, density=density_2d)))
