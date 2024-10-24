@@ -91,7 +91,7 @@ def area_by_surface(mesh, sloped_angle_threshold=3, tri_mesh=None):
     if "semantics" in mesh.cell_data:
         # Compute area per surface type
         sized = tri_mesh.compute_cell_sizes()
-        surface_areas = sized.cell_data["Area"]
+        area_data = sized.cell_data["Area"]
 
         points_per_cell = np.array([mesh.get_cell(i).n_points for i in range(mesh.number_of_cells)])
 
