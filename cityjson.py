@@ -46,17 +46,20 @@ def to_shapely(geom, vertices, ground_only=True):
     
     shape_2d = MultiPolygon([Polygon([vertices[v] for v in boundary[0]]) for boundary in boundaries_2d])
 
-    boundaries_3d = get_surface_boundaries(geom, "3d")
-    shapes_3d = []
-
-    for boundary_set in boundaries_3d:
-        for boundary in boundary_set:
-            # Extract vertices including z-coordinates
-            poly_3d = Polygon([(vertices[v][0], vertices[v][1], vertices[v][2]) for v in boundary[0]])
-            shapes_3d.append(poly_3d)
-
-    shape_3d = MultiPolygon(shapes_3d)
-
+    if geom["type"] == "Solid":
+        boundaries_3d = get_surface_boundaries(geom, "3d")
+        shapes_3d = []
+    
+        for boundary_set in boundaries_3d:
+            for boundary in boundary_set:
+                # Extract vertices including z-coordinates
+                poly_3d = Polygon([(vertices[v][0], vertices[v][1], vertices[v][2]) for v in boundary[0]])
+                shapes_3d.append(poly_3d)
+    
+        shape_3d = MultiPolygon(shapes_3d)
+    else:
+        shape_3d = []
+        
     return shape_2d.buffer(0), shape_3d
 
 def to_polydata(geom, vertices):
