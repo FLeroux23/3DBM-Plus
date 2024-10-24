@@ -317,11 +317,10 @@ class StatValuesBuilder:
 
 def process_building(building, building_id,
                      filter,
-                     repair,
+                     repair, with_indices,
                      density_2d, density_3d,
                      plot_buildings, errors,
-                     vertices, neighbours=[],
-                     indices_list=None):
+                     vertices, neighbours=[], custom_indices=[]):
 
     if not filter is None and filter != building_id:
         return building_id, None
@@ -465,7 +464,7 @@ def process_building(building, building_id,
         "geometry_3d": shape_3d
     }
 
-    if indices_list is None or len(indices_list) > 0:
+    if with_indices:
         voxel = pv.voxelize(tri_mesh, density=density_3d, check_surface=False)
         grid = voxel.cell_centers().points
         grid_point_count = len(grid)
@@ -495,7 +494,6 @@ def process_building(building, building_id,
         else:
             closest_distance = "NA"
 
-        custom_indices = []
         builder = StatValuesBuilder(values, custom_indices)
 
         builder.add_index("2d_grid_point_count", lambda: len(si.create_grid_2d(shape_2d, density=density_2d)))
@@ -541,7 +539,7 @@ def process_building(building, building_id,
 
 def city_stats(input,
                filter,
-               repair, without_indices,
+               repair, with_indices,
                density_2d, density_3d,
                val3dity_report, break_on_error, plot_buildings,
                single_threaded, jobs):
@@ -589,15 +587,13 @@ def city_stats(input,
             errors = get_errors_from_report(report, cityobject_id, cm)
             
             neighbours = get_neighbours(cm, cityobject_id, r, verts)
-
-            indices_list = [] if without_indices else None
             
             try:
                 obj, vals = process_building(building=cityobject, building_id=cityobject_id,
-                                             vertices=vertices, neighbours=neighbours,
                                              filter=filter,
-                                             repair=repair, indices_list=indices_list,
+                                             repair=repair, with_indices=with_indices,
                                              density_2d=density_2d, density_3d=density_3d,
+                                             vertices=vertices, neighbours=neighbours,
                                              plot_buildings=plot_buildings, errors=errors)
                 if not vals is None:
                     stats[obj] = vals
@@ -623,14 +619,12 @@ def city_stats(input,
 
                     neighbours = get_neighbours(cm, cityobject_id, r, verts)
 
-                    indices_list = [] if without_indices else None
-
                     future = pool.submit(process_building,
                                         building=cityobject, building_id=cityobject_id,
-                                        vertices=vertices, neighbours=neighbours,
                                         filter=filter,
-                                        repair=repair, indices_list=indices_list,
+                                        repair=repair, with_indices=with_indices,
                                         density_2d=density_2d, density_3d=density_3d,
+                                        vertices=vertices, neighbours=neighbours,
                                         plot_buildings=plot_buildings, errors=errors)
                     
                     future.add_done_callback(lambda p: progress.update())
@@ -660,14 +654,14 @@ def city_stats(input,
         
 def process_files(input, output_csv, output_gpkg,
                   filter,
-                  repair, without_indices,
+                  repair, with_indices,
                   density_2d, density_3d,
                   val3dity_report, break_on_error, plot_buildings,
                   single_threaded, jobs):
 
     df, cm = city_stats(input=input,
                         filter=filter,
-                        repair=repair, without_indices=without_indices,
+                        repair=repair, with_indices=with_indices,
                         density_2d=density_2d, density_3d=density_3d,
                         val3dity_report=val3dity_report, break_on_error=break_on_error, plot_buildings=plot_buildings,
                         single_threaded=single_threaded, jobs=jobs)
@@ -706,7 +700,7 @@ def process_files(input, output_csv, output_gpkg,
 @click.option('-f', '--filter')
 @click.option('-r', '--repair', flag_value=True)
 @click.option('-p', '--plot-buildings', flag_value=True)
-@click.option('--without-indices', flag_value=True)
+@click.option('-i', '--with-indices', flag_value=True)
 @click.option('-s', '--single-threaded', flag_value=True)
 @click.option('-b', '--break-on-error', flag_value=True)
 @click.option('-j', '--jobs', default=1)
@@ -714,14 +708,14 @@ def process_files(input, output_csv, output_gpkg,
 @click.option('--density-3d', default=1.0)
 def main(input, output_csv, output_gpkg,
          filter,
-         repair, without_indices,
+         repair, with_indices,
          density_2d, density_3d,
          val3dity_report, break_on_error, plot_buildings,
          single_threaded, jobs):
 
     process_files(input=input, output_csv=output_csv, output_gpkg=output_gpkg,
                   filter=filter,
-                  repair=repair, without_indices=without_indices,
+                  repair=repair, with_indices=with_indices,
                   density_2d=density_2d, density_3d=density_3d,
                   val3dity_report=val3dity_report, break_on_error=break_on_error, plot_buildings=plot_buildings,
                   single_threaded=single_threaded, jobs=jobs)
