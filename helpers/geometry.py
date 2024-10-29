@@ -27,7 +27,7 @@ def surface_normal(poly):
 
     normalized = n / norm_length
 
-    return (n / np.linalg.norm(n)).tolist()
+    return normalized
 
 def compute_surface_area(mesh):
     def triangle_area(v1, v2, v3):
