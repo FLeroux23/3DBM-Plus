@@ -338,8 +338,8 @@ class StatValuesBuilder:
 def process_building(building, building_id,
                      filter_building_id,
                      repair, with_indices,
-                     density_2d, density_3d,
-                     plot_buildings, errors,
+                     precision, density_2d, density_3d,
+                     errors, plot_buildings,
                      vertices, neighbours=[], custom_indices=[]):
 
     if filter_building_id is not None and filter_building_id != building_id:
@@ -563,7 +563,7 @@ def process_building(building, building_id,
 def city_stats(input,
                filter_lod, filter_building_id,
                repair, with_indices,
-               density_2d, density_3d,
+               precision, density_2d, density_3d,
                val3dity_report, break_on_error, plot_buildings,
                single_threaded, jobs):
     
@@ -674,8 +674,8 @@ def city_stats(input,
 
     click.echo("Building data frame...")
 
-    df_original_attributes = pd.DataFrame.from_dict(parent_attributes, orient="index")
-    df_3dbm_attributes = pd.DataFrame.from_dict(stats, orient="index")
+    df_original_attributes = pd.DataFrame.from_dict(parent_attributes, orient="index").round(precision)
+    df_3dbm_attributes = pd.DataFrame.from_dict(stats, orient="index").round(precision)
                    
     merged_df = pd.merge(df_original_attributes.reset_index(), df_3dbm_attributes.reset_index(), left_on='index', right_on='building_ID', how='inner')
     merged_df = merged_df.drop(columns=['index_x', 'index_y'])
@@ -685,14 +685,14 @@ def city_stats(input,
 def process_files(input, output_cityjson, output_csv, output_gpkg,
                   filter_lod, filter_building_id,
                   repair, with_indices,
-                  density_2d, density_3d,
+                  precision, density_2d, density_3d,
                   val3dity_report, break_on_error, plot_buildings,
                   single_threaded, jobs):
 
     df, cm = city_stats(input=input,
                         filter_lod=filter_lod, filter_building_id=filter_building_id,
                         repair=repair, with_indices=with_indices,
-                        density_2d=density_2d, density_3d=density_3d,
+                        precision=precision, density_2d=density_2d, density_3d=density_3d,
                         val3dity_report=val3dity_report, break_on_error=break_on_error, plot_buildings=plot_buildings,
                         single_threaded=single_threaded, jobs=jobs)
 
@@ -748,6 +748,7 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
 @click.option('-f', '--filter-building-id', default=None)
 @click.option('-r', '--repair', flag_value=True)
 @click.option('-i', '--with-indices', flag_value=True)
+@click.option('--precision', default = 2)
 @click.option('--density-2d', default=1.0)
 @click.option('--density-3d', default=1.0)
 @click.option('-v', '--val3dity-report', type=click.File("rb"))
@@ -758,14 +759,14 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
 def main(input, output_cityjson, output_csv, output_gpkg,
          filter_lod, filter_building_id,
          repair, with_indices,
-         density_2d, density_3d,
+         precision, density_2d, density_3d,
          val3dity_report, break_on_error, plot_buildings,
          single_threaded, jobs):
 
     process_files(input=input, output_cityjson=output_cityjson, output_csv=output_csv, output_gpkg=output_gpkg,
                   filter_lod=filter_lod, filter_building_id=filter_building_id,
                   repair=repair, with_indices=with_indices,
-                  density_2d=density_2d, density_3d=density_3d,
+                  precision=precision, density_2d=density_2d, density_3d=density_3d,
                   val3dity_report=val3dity_report, break_on_error=break_on_error, plot_buildings=plot_buildings,
                   single_threaded=single_threaded, jobs=jobs)
 
