@@ -682,7 +682,7 @@ def city_stats(input,
 
     return merged_df, original_cm
         
-def process_files(input, output_csv, output_gpkg,
+def process_files(input, output_cityjson, output_csv, output_gpkg,
                   filter_lod, filter_building_id,
                   repair, with_indices,
                   density_2d, density_3d,
@@ -720,11 +720,29 @@ def process_files(input, output_csv, output_gpkg,
     if output_csv is not None:
         click.echo("Writing output...")
         df.to_csv(output_csv)
-        
+
+    if output_cityjson is not None:
+        for index, row in df.iterrows():
+            building_id = row["building_ID"]
+            lod = row["lod"]
+            
+            surface_areas = row["surface_areas"]
+            surface_azimuths = row["surface_azimuths"]
+            surface_inclinations = row["surface_inclinations"]
+            
+            cityobject = cm["CityObjects"][building_id]
+
+            cityobject["attributes"] = row.to_dict()
+
+        with open(output_cityjson, 'w') as out_file:
+            json.dump(cm, out_file)
+
+
 # Assume semantic surfaces
 @click.command()
 @click.argument("input", type=click.File("rb"))
 @click.option('-c', '--output-csv', type=click.File("wb"))
+@click.option('-o', '--output-cityjson')
 @click.option('-g', '--output-gpkg')
 @click.option('-l', '--filter-lod', default = '2.2')
 @click.option('-f', '--filter-building-id', default=None)
@@ -737,14 +755,14 @@ def process_files(input, output_csv, output_gpkg,
 @click.option('-p', '--plot-buildings', flag_value=True)
 @click.option('-s', '--single-threaded', flag_value=True)
 @click.option('-j', '--jobs', default=1)
-def main(input, output_csv, output_gpkg,
+def main(input, output_cityjson, output_csv, output_gpkg,
          filter_lod, filter_building_id,
          repair, with_indices,
          density_2d, density_3d,
          val3dity_report, break_on_error, plot_buildings,
          single_threaded, jobs):
 
-    process_files(input=input, output_csv=output_csv, output_gpkg=output_gpkg,
+    process_files(input=input, output_cityjson=output_cityjson, output_csv=output_csv, output_gpkg=output_gpkg,
                   filter_lod=filter_lod, filter_building_id=filter_building_id,
                   repair=repair, with_indices=with_indices,
                   density_2d=density_2d, density_3d=density_3d,
