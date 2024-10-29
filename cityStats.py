@@ -316,13 +316,13 @@ class StatValuesBuilder:
             self.__values[index_name] = "NC"
 
 def process_building(building, building_id,
-                     filter,
+                     filter_building_id,
                      repair, with_indices,
                      density_2d, density_3d,
                      plot_buildings, errors,
                      vertices, neighbours=[], custom_indices=[]):
 
-    if not filter is None and filter != building_id:
+    if filter_building_id is not None and filter_building_id != building_id:
         return building_id, None
 
     # TODO: Add options for all skip conditions below
@@ -540,7 +540,7 @@ def process_building(building, building_id,
     return building_id, values
 
 def city_stats(input,
-               filter,
+               filter_building_id,
                repair, with_indices,
                density_2d, density_3d,
                val3dity_report, break_on_error, plot_buildings,
@@ -592,7 +592,7 @@ def city_stats(input,
             
             try:
                 obj, vals = process_building(building=cityobject, building_id=cityobject_id,
-                                             filter=filter,
+                                             filter_building_id=filter_building_id,
                                              repair=repair, with_indices=with_indices,
                                              density_2d=density_2d, density_3d=density_3d,
                                              vertices=vertices, neighbours=neighbours,
@@ -623,7 +623,7 @@ def city_stats(input,
 
                     future = pool.submit(process_building,
                                         building=cityobject, building_id=cityobject_id,
-                                        filter=filter,
+                                        filter_building_id=filter_building_id,
                                         repair=repair, with_indices=with_indices,
                                         density_2d=density_2d, density_3d=density_3d,
                                         vertices=vertices, neighbours=neighbours,
@@ -655,14 +655,14 @@ def city_stats(input,
     return df, original_cm
         
 def process_files(input, output_csv, output_gpkg,
-                  filter,
+                  filter_building_id,
                   repair, with_indices,
                   density_2d, density_3d,
                   val3dity_report, break_on_error, plot_buildings,
                   single_threaded, jobs):
 
     df, cm = city_stats(input=input,
-                        filter=filter,
+                        filter_building_id=filter_building_id,
                         repair=repair, with_indices=with_indices,
                         density_2d=density_2d, density_3d=density_3d,
                         val3dity_report=val3dity_report, break_on_error=break_on_error, plot_buildings=plot_buildings,
@@ -699,7 +699,7 @@ def process_files(input, output_csv, output_gpkg,
 @click.option('-c', '--output-csv', type=click.File("wb"))
 @click.option('-g', '--output-gpkg')
 @click.option('-v', '--val3dity-report', type=click.File("rb"))
-@click.option('-f', '--filter')
+@click.option('-f', '--filter-building-id', default=None)
 @click.option('-r', '--repair', flag_value=True)
 @click.option('-p', '--plot-buildings', flag_value=True)
 @click.option('-i', '--with-indices', flag_value=True)
@@ -709,14 +709,14 @@ def process_files(input, output_csv, output_gpkg,
 @click.option('--density-2d', default=1.0)
 @click.option('--density-3d', default=1.0)
 def main(input, output_csv, output_gpkg,
-         filter,
+         filter_building_id,
          repair, with_indices,
          density_2d, density_3d,
          val3dity_report, break_on_error, plot_buildings,
          single_threaded, jobs):
 
     process_files(input=input, output_csv=output_csv, output_gpkg=output_gpkg,
-                  filter=filter,
+                  filter_building_id=filter_building_id,
                   repair=repair, with_indices=with_indices,
                   density_2d=density_2d, density_3d=density_3d,
                   val3dity_report=val3dity_report, break_on_error=break_on_error, plot_buildings=plot_buildings,
