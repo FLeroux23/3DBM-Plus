@@ -19,6 +19,25 @@ import cityjson
 import geometry
 import shape_index as si
 
+
+def compute_surface_normal(boundaries, vertices):
+    normals = np.zeros((len(boundaries), 3))
+    
+    for fid, face in enumerate(boundaries):
+        points = vertices[np.hstack(face)]
+        normal = surface_normal(points)
+        normals[fid] = normal
+
+    return normals
+
+def filter_by_semantic_surface(dataset, surface_data, semantic_type):
+    semantics = np.array(dataset.cell_data["semantics"])
+    filter_idxs = (semantics == semantic_type)
+
+    surface_data = surface_data[filter_idxs]
+    
+    return surface_data, filter_idxs
+
 def filter_level_of_detail(cm, lod):
     for cityobject_id in cm["CityObjects"]:
         cityobject = cm["CityObjects"][cityobject_id]
@@ -156,6 +175,22 @@ def get_surface_plot(
 
     return orientation_plot(bin_counts, bin_edges)
 
+def get_azimuth(dx, dy):
+    """Returns the azimuth angle for the given coordinates"""
+    
+    return np.degrees(np.arctan2(dx, dy)) % 360
+
+def get_elevation_angle(dx, dy, dz):
+    """Returns the inclination angle for the given coordinates."""
+
+    magnitude = np.sqrt(dx**2 + dy**2 + dz**2)
+
+    angle_rad = np.arccos(dz / magnitude)
+
+    angle_deg = np.degrees(angle_rad)
+
+    return angle_deg
+    
 def azimuth(dx, dy):
     """Returns the azimuth angle for the given coordinates"""
     
