@@ -74,6 +74,7 @@ def axes_of_normal(normal):
     
     normal = np.array(normal)  # Ensure normal is a NumPy array for vector operations
 
+    # Choose the x-axis based on the largest component
     if abs(normal[2]) > 0.001:  # Check z-component
         x_axis = np.array([1, 0, -normal[0] / normal[2]])
     elif abs(normal[1]) > 0.001:  # Check y-component
