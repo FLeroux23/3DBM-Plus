@@ -36,7 +36,15 @@ def compute_surface_area(mesh):
         b = np.linalg.norm(v3 - v1)
         c = np.linalg.norm(v3 - v2)
         s = (a + b + c) / 2.0  # Semi-perimeter
-        return np.sqrt(s * (s - a) * (s - b) * (s - c))  # Heron's formula
+        area_term = s * (s - a) * (s - b) * (s - c)  # Heron's formula
+        
+        # Check for negative area term due to floating-point precision issues
+        if area_term < 0:
+            return 0
+    
+        area = np.sqrt(area_term)
+        
+        return area
 
     boundaries = mesh.faces
     vertices = mesh.points
