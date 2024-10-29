@@ -14,7 +14,7 @@ import scipy.spatial as ss
 from scipy import stats
 from pymeshfix import MeshFix
 from tqdm import tqdm
-
+from helpers.geometry import surface_normal, compute_surface_area
 import cityjson
 import geometry
 import shape_index as si
@@ -439,10 +439,12 @@ def process_building(building, building_id,
         "mode_Z": height_stats["Mode"] if height_stats["ModeStatus"] == "Y" else "NA",
         "std_Z": height_stats["Std"],
         # --- Area
-        "surface_area": mesh.area,
-        "ground_area": area["GroundSurface"],
-        "wall_area": area["WallSurface"],
-        "roof_area": area["RoofSurface"],
+        "total_surface_area": mesh.area,
+        "total_ground_area": area["GroundSurface"],
+        "total_wall_area": area["WallSurface"],
+        "total_roof_area": area["RoofSurface"],
+        "roof_sloped_area": area["RoofSurfaceSloped"],
+        "roof_flat_area": area["RoofSurfaceFlat"],
         # --- Volume
         "actual_volume": fixed.volume,
         "convex_hull_volume": ch_volume,
