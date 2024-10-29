@@ -226,24 +226,24 @@ def boundingbox_volume(points):
 
     return (maxx - minx) * (maxy - miny) * (maxz - minz)
 
-def get_errors_from_report(report, objid, cm):
+def get_errors_from_report(report, cityobject_id, cm):
     """Return the report for the feature of the given obj"""
 
     if not "features" in report:
         return []
     
-    fid = objid
+    fid = cityobject_id
 
-    obj = cm["CityObjects"][objid]
+    cityobject = cm["CityObjects"][cityobject_id]
     primidx = 0
 
-    if not "geometry" in obj or len(obj["geometry"]) == 0:
+    if not "geometry" in cityobject or len(cityobject["geometry"]) == 0:
         return []
 
-    if "parents" in obj:
-        parid = obj["parents"][0]
+    if "parents" in cityobject:
+        parid = cityobject["parents"][0]
 
-        primidx = cm["CityObjects"][parid]["children"].index(objid)
+        primidx = cm["CityObjects"][parid]["children"].index(cityobject_id)
         fid = parid
 
     for f in report["features"]:
