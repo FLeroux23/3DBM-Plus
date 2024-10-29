@@ -169,6 +169,62 @@ def cluster_faces(data, threshold=0.1):
     
     return clustering.labels_, clustering.n_clusters_
 
+def cluster_faces_simple(data, threshold=0.1):
+    """Clusters the given planes"""
+    # we can delete the third column because it is all 0's for vertical planes
+    ndata = np.delete(data, 2, 1)
+
+    # flip normals so that they can not be pointing in opposite direction for same plane
+    neg_x = ndata[:,0] < 0
+    ndata[neg_x,:] = ndata[neg_x,:] * -1
+
+    dist_mat = distance_matrix(ndata, ndata)
+
+    clustering = AgglomerativeClustering(n_clusters=None,
+                                         distance_threshold=threshold,
+                                         metric='precomputed',
+                                         linkage='average').fit(dist_mat)
+    
+    return clustering.labels_, clustering.n_clusters_
+
+def cluster_faces_alternative(data, angle_threshold=0.005, dist_threshold=0.2):
+    """Clusters the given planes"""
+    def groupby(a, clusterids):
+        return out, sidx
+
+    ndata = np.array(data)
+
+    # new method - angle clustering
+    angle_clustering = AgglomerativeClustering(n_clusters=None,
+                                         metric='cosine',
+                                         distance_threshold=angle_threshold,
+                                         linkage='average').fit(ndata[:,:3])
+    # group angle clusters
+    angle_clusters, remap = groupby(ndata[:,3:], angle_clustering.labels_)
+
+    # get dist clusters for each angle cluster
+    labels_ = np.empty(0, dtype=int)
+    min_label = 0
+    for angle_cluster in angle_clusters:
+        if angle_cluster.size == 1:
+            labels_ = np.hstack((labels_, min_label))
+            min_label += 1
+        else:
+            dist_clustering = AgglomerativeClustering(n_clusters=None,
+                                                metric='euclidean',
+                                                distance_threshold=dist_threshold,
+                                                linkage='average').fit(angle_cluster)
+            labels_ = np.hstack((labels_, dist_clustering.labels_ + min_label))
+            min_label = labels_.max()+1
+    
+    # re order back to input data order
+    n_planes = ndata.shape[0]
+    labels = np.empty(n_planes, dtype=int)
+    labels[remap] = labels_
+
+    n_clusters = (np.bincount(labels)!=0).sum()
+    return labels, n_clusters
+
 def intersect_surfaces(meshes):
     """Return the intersection between the surfaces of multiple meshes"""
 
