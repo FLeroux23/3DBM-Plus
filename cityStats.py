@@ -549,7 +549,7 @@ def process_building(building, building_id,
         builder.add_index("shared_walls_area", lambda: shared_area)
         builder.add_index("closest_distance", lambda: closest_distance)
 
-    return building_id, values
+    return values
 
 def city_stats(input,
                filter_lod, filter_building_id,
@@ -569,15 +569,11 @@ def city_stats(input,
                 for v in cm["vertices"]]
     else:
         verts = cm["vertices"]
-    
-    if val3dity_report is None:
-        report = {}
-    else:
-        report = json.load(val3dity_report)
 
-        if not validate_report(report, cm):
-            print("This doesn't seem like the right report for this file.")
-            return
+    report = json.load(val3dity_report) if val3dity_report is not None else {}
+    if val3dity_report is not None and not validate_report(report, cm):
+        print("This doesn't seem like the right report for this file.")
+        return
 
     # mesh points
     vertices = np.array(verts)
@@ -604,14 +600,14 @@ def city_stats(input,
             neighbours = get_neighbours(cm, cityobject_id, r, verts)
             
             try:
-                obj, vals = process_building(building=cityobject, building_id=cityobject_id,
+                vals = process_building(building=cityobject, building_id=cityobject_id,
                                              filter_building_id=filter_building_id,
                                              repair=repair, with_indices=with_indices,
                                              density_2d=density_2d, density_3d=density_3d,
                                              vertices=vertices, neighbours=neighbours,
                                              plot_buildings=plot_buildings, errors=errors)
-                if not vals is None:
-                    stats[obj] = vals
+                if vals is not None:
+                    stats[cityobject_id] = vals
             except Exception as e:
                 print(f"Problem with {cityobject_id}")
                 if break_on_error:
@@ -648,9 +644,9 @@ def city_stats(input,
                 results = []
                 for future in futures:
                     try:
-                        obj, vals = future.result()
-                        if not vals is None:
-                            stats[obj] = vals
+                        vals = future.result()
+                        if vals is not None:
+                            stats[cityobject_id] = vals
                     except Exception as e:
                         print(f"Problem with {cityobject_id}")
                         if break_on_error:
