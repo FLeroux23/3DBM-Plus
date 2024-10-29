@@ -485,6 +485,8 @@ def process_building(building, building_id,
         "ground_surface-count": surface_count["GroundSurface"],
         "wall_surface_count": surface_count["WallSurface"],
         "roof_surface_count": surface_count["RoofSurface"],
+        "roof_surface_sloped_count": surface_count["RoofSurfaceSloped"],
+        "roof_surface_flat_count": surface_count["RoofSurfaceFlat"],
         # --- Height
         "ground_Z": ground_z,
         "min_Z": height_stats["Min"],
