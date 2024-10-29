@@ -210,6 +210,14 @@ def compute_stats(values, percentile = 90, percentage = 75):
         
     return hDic
 
+def get_parent_attributes(cm):
+    building_attributes = {
+        obj_id: obj["attributes"]
+        for obj_id, obj in cm["CityObjects"].items() if obj["type"] == "Building"
+    }
+    
+    return building_attributes
+
 def add_value(dict, key, value):
     """Does dict[key] = dict[key] + value"""
 
@@ -428,6 +436,7 @@ def process_building(building, building_id,
 
     values = {
         # --- Identifiers
+        "building_ID": -1,
         "type": building["type"],
         "lod": geom["lod"],
         # --- Point count
@@ -591,6 +600,8 @@ def city_stats(input,
     p.dimension = 3
     r = rtree.index.Index(tree_generator_function(cm, vertices), properties=p)
 
+    parent_attributes = get_parent_attributes(cm)
+                   
     if single_threaded or jobs == 1:
         for cityobject_id in tqdm(cm["CityObjects"]):
             cityobject = cm["CityObjects"][cityobject_id]
@@ -601,12 +612,15 @@ def city_stats(input,
             
             try:
                 vals = process_building(building=cityobject, building_id=cityobject_id,
-                                             filter_building_id=filter_building_id,
-                                             repair=repair, with_indices=with_indices,
-                                             density_2d=density_2d, density_3d=density_3d,
-                                             vertices=vertices, neighbours=neighbours,
-                                             plot_buildings=plot_buildings, errors=errors)
-                if vals is not None:
+                                        filter_building_id=filter_building_id,
+                                        repair=repair, with_indices=with_indices,
+                                        density_2d=density_2d, density_3d=density_3d,
+                                        vertices=vertices, neighbours=neighbours,
+                                        plot_buildings=plot_buildings, errors=errors)
+                
+                if vals is not None and '-' in cityobject_id:
+                    parent_id = cityobject_id.split('-')[0] if '-' in cityobject_id else cityobject_id
+                    vals["building_ID"] = parent_id
                     stats[cityobject_id] = vals
             except Exception as e:
                 print(f"Problem with {cityobject_id}")
@@ -631,12 +645,12 @@ def city_stats(input,
                     neighbours = get_neighbours(cm, cityobject_id, r, verts)
 
                     future = pool.submit(process_building,
-                                        building=cityobject, building_id=cityobject_id,
-                                        filter_building_id=filter_building_id,
-                                        repair=repair, with_indices=with_indices,
-                                        density_2d=density_2d, density_3d=density_3d,
-                                        vertices=vertices, neighbours=neighbours,
-                                        plot_buildings=plot_buildings, errors=errors)
+                                         building=cityobject, building_id=cityobject_id,
+                                         filter_building_id=filter_building_id,
+                                         repair=repair, with_indices=with_indices,
+                                         density_2d=density_2d, density_3d=density_3d,
+                                         vertices=vertices, neighbours=neighbours,
+                                         plot_buildings=plot_buildings, errors=errors)
                     
                     future.add_done_callback(lambda p: progress.update())
                     futures.append(future)
@@ -646,6 +660,8 @@ def city_stats(input,
                     try:
                         vals = future.result()
                         if vals is not None:
+                            parent_id = cityobject_id.split('-')[0] if '-' in cityobject_id else cityobject_id
+                            vals["building_ID"] = parent_id
                             stats[cityobject_id] = vals
                     except Exception as e:
                         print(f"Problem with {cityobject_id}")
@@ -658,10 +674,13 @@ def city_stats(input,
 
     click.echo("Building data frame...")
 
-    df = pd.DataFrame.from_dict(stats, orient="index")
-    df.index.name = "id"
+    df_original_attributes = pd.DataFrame.from_dict(parent_attributes, orient="index")
+    df_3dbm_attributes = pd.DataFrame.from_dict(stats, orient="index")
+                   
+    merged_df = pd.merge(df_original_attributes.reset_index(), df_3dbm_attributes.reset_index(), left_on='index', right_on='building_ID', how='inner')
+    merged_df = merged_df.drop(columns=['index_x', 'index_y'])
 
-    return df, original_cm
+    return merged_df, original_cm
         
 def process_files(input, output_csv, output_gpkg,
                   filter_lod, filter_building_id,
