@@ -417,8 +417,8 @@ def process_building(building, building_id,
     # Height statistics
     roof_points = geometry.get_points_of_type(mesh, "RoofSurface")
     ground_points = geometry.get_points_of_type(mesh, "GroundSurface")        
-    height_stats = compute_stats([v[2] for v in roof_points]) if roof_points else compute_stats([0])
-    ground_z = min([v[2] for v in ground_points]) if ground_points else mesh.bounds[4]
+    height_stats = (compute_stats([v[2] for v in roof_points]) if roof_points.size > 0 else compute_stats([0]))
+    ground_z = (min([v[2] for v in ground_points]) if ground_points.size > 0 else mesh.bounds[4])
 
     # Shape calculations
     shape_2d, shape_3d = cityjson.to_shapely(geom, vertices, ground_only=bool(ground_points))
@@ -515,7 +515,7 @@ def process_building(building, building_id,
             # Get neighbour meshes
             for geom in neighbours:
                 neighbour_mesh = cityjson.to_triangulated_polydata(geom, vertices).clean()
-                neighbour_mesh.points -= t<
+                neighbour_mesh.points -= t
                 n_meshes.append(neighbour_mesh)
             
             # Compute shared walls
