@@ -144,6 +144,8 @@ cython_debug/
 *.png
 tests/
 __init__.py
+cityCompare.py
+cityPlot.py
 extractLod.py
 notebook.sh
 volume.py
