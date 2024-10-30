@@ -1,5 +1,6 @@
 import json
 import math
+import ast
 from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 
@@ -14,6 +15,7 @@ import scipy.spatial as ss
 from scipy import stats
 from pymeshfix import MeshFix
 from tqdm import tqdm
+# 3dbm functions
 from helpers.geometry import surface_normal, compute_surface_area
 import cityjson
 import geometry
