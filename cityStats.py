@@ -404,7 +404,7 @@ def process_building(building, building_id,
     mesh = cityjson.to_polydata(geom, vertices).clean()
 
     try:
-        tri_mesh = cityjson.to_triangulated_polydata(geom, vertices).clean()
+        tri_mesh = cityjson.to_triangulated_polydata(geom, vertices)
     except:
         print(f"{building_id} geometry parsing crashed! Omitting...")
         return building_id, {"type": building["type"]}
@@ -801,6 +801,7 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
 
     if output_cityjson is not None:
         for index, row in df.iterrows():
+            building_part_id = str(row["building_ID"]) + "-0"
             building_id = row["building_ID"]
             lod = row["lod"]
 
