@@ -595,7 +595,7 @@ def process_building(building, building_id,
         builder.add_index("shared_walls_area", lambda: shared_area)
         builder.add_index("closest_distance", lambda: closest_distance)
 
-    return values
+    return building_id, values
 
 def city_stats(input,
                filter_lod, filter_building_id,
@@ -648,19 +648,19 @@ def city_stats(input,
             neighbours = get_neighbours(cm, cityobject_id, r, verts)
             
             try:
-                vals = process_building(building=cityobject, building_id=cityobject_id,
+                building_id, vals = process_building(building=cityobject, building_id=cityobject_id,
                                         filter_building_id=filter_building_id,
                                         repair=repair, with_indices=with_indices,
                                         precision=precision, density_2d=density_2d, density_3d=density_3d,
                                         vertices=vertices, neighbours=neighbours,
                                         plot_buildings=plot_buildings, errors=errors)
                 
-                if vals is not None and '-' in cityobject_id:
-                    parent_id = cityobject_id.split('-')[0] if '-' in cityobject_id else cityobject_id
+                if vals is not None:
+                    parent_id = building_id.split('-')[0] if '-' in building_id else building_id
                     vals["building_ID"] = parent_id
-                    stats[cityobject_id] = vals
+                    stats[building_id] = vals
             except Exception as e:
-                print(f"Problem with {cityobject_id}")
+                print(f"Problem with {building_id}")
                 if break_on_error:
                     raise e
 
@@ -695,13 +695,13 @@ def city_stats(input,
                 results = []
                 for future in futures:
                     try:
-                        vals = future.result()
-                        if vals is not None and '-' in cityobject_id:
-                            parent_id = cityobject_id.split('-')[0] if '-' in cityobject_id else cityobject_id
+                        building_id, vals = future.result()
+                        if vals is not None:
+                            parent_id = building_id.split('-')[0] if '-' in building_id else building_id
                             vals["building_ID"] = parent_id
-                            stats[cityobject_id] = vals
+                            stats[building_id] = vals
                     except Exception as e:
-                        print(f"Problem with {cityobject_id}")
+                        print(f"Problem with {building_id}")
                         if break_on_error:
                             raise e
 
