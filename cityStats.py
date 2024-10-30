@@ -358,113 +358,79 @@ def process_building(building, building_id,
                      errors, plot_buildings,
                      vertices, neighbours=[], custom_indices=[]):
 
+    # Early exit if building ID doesn't match filter
     if filter_building_id is not None and filter_building_id != building_id:
         return building_id, None
 
     # TODO: Add options for all skip conditions below
-
     # Skip if type is not Building or Building part
     if not building["type"] in ["Building", "BuildingPart"]:
         return building_id, None
-
     # Skip if no geometry
     if not "geometry" in building or len(building["geometry"]) == 0:
         return building_id, None
 
     geom = building["geometry"][0]
-    
-    mesh = cityjson.to_polydata(geom, vertices).clean()
+                         
+    # Convert geometry to mesh
+    mesh = cityjson.to_polydata(geom, vertices)
 
     try:
         tri_mesh = cityjson.to_triangulated_polydata(geom, vertices)
     except:
         print(f"{building_id} geometry parsing crashed! Omitting...")
         return building_id, {"type": building["type"]}
-
     tri_mesh, t = geometry.move_to_origin(tri_mesh)
+    fixed = MeshFix(tri_mesh).repair().mesh if repair else tri_mesh
 
     if plot_buildings:
         print(f"Plotting {building_id}")
         tri_mesh.plot(show_grid=True)
 
-    # get_surface_plot(dataset, title=obj)
-
+    # Compute surface bearings
     bin_count, bin_edges = get_wall_bearings(mesh, 36)
-
     xzc, yzc, be = get_roof_bearings(mesh, 36)
-    # plot_orientations(xzc, be, title=f"XZ orientation [{obj}]")
-    # plot_orientations(yzc, be, title=f"YZ orientation [{obj}]")
-
-    # total_xy = total_xy + bin_count
-    # total_xz = total_xz + xzc
-    # total_yz = total_yz + yzc
-
-    fixed = MeshFix(tri_mesh).repair().mesh if repair else tri_mesh
-
-    # holes = mfix.extract_holes()
-
-    # plotter = pv.Plotter()
-    # plotter.add_mesh(dataset, color=True)
-    # plotter.add_mesh(holes, color='r', line_width=5)
-    # plotter.enable_eye_dome_lighting() # helps depth perception
-    # _ = plotter.show()
 
     points = cityjson.get_points(geom, vertices)
     boundaries = cityjson.get_surface_boundaries(geom)
-
     surface_areas = compute_surface_area(mesh).round(precision)
-                         
     area, point_count, surface_count = geometry.area_by_surface(mesh)
-
+                         
+    # --- Compute surface properties
     surface_normals = compute_surface_normal(boundaries, vertices).round(precision)
     surface_azimuths = get_azimuth(surface_normals[:, 0], surface_normals[:, 1]).round(precision)
     surface_inclinations = get_elevation_angle(surface_normals[:, 0], surface_normals[:, 1], surface_normals[:, 2]).round(precision)
-    
+    # Wall properties
     wall_azimuths, _ = list(filter_by_semantic_surface(mesh, surface_azimuths, "WallSurface"))
     wall_inclinations, _ = list(filter_by_semantic_surface(mesh, surface_inclinations, "WallSurface"))
     wall_areas, _ = list(filter_by_semantic_surface(mesh, surface_areas, "WallSurface"))
-
+    # Roof properties
     roof_azimuths, _ = list(filter_by_semantic_surface(mesh, surface_azimuths, "RoofSurface"))
     roof_inclinations, _ = list(filter_by_semantic_surface(mesh, surface_inclinations, "RoofSurface"))
     roof_areas, _ = list(filter_by_semantic_surface(mesh, surface_areas, "RoofSurface"))
-    
+    # Roof type properties
     roof_type = np.array(roof_inclinations) > 3 # If the roof inclination is superior to 3 degrees, it is considered 'sloped'
     surface_count["RoofSurfaceSloped"] = sum(roof_type)
     surface_count["RoofSurfaceFlat"] = len(roof_type) - surface_count["RoofSurfaceSloped"] 
     roof_type = np.where(roof_type, "sloped", "flat")
-                         
-    if "semantics" in geom:
-        roof_points = geometry.get_points_of_type(mesh, "RoofSurface")
-        ground_points = geometry.get_points_of_type(mesh, "GroundSurface")
-    else:
-        roof_points = []
-        ground_points = []
 
-    if len(roof_points) == 0:
-        height_stats = compute_stats([0])
-        ground_z = 0
-    else:
-        height_stats = compute_stats([v[2] for v in roof_points])
-        if len(ground_points) > 0:
-            ground_z = min([v[2] for v in ground_points])
-        else:
-            ground_z = mesh.bounds[4]
-    
-    if len(ground_points) > 0:
-        shape_2d, shape_3d = cityjson.to_shapely(geom, vertices)
-    else:
-        shape_2d, shape_3d = cityjson.to_shapely(geom, vertices, ground_only=False)
+    # Height statistics
+    roof_points = geometry.get_points_of_type(mesh, "RoofSurface")
+    ground_points = geometry.get_points_of_type(mesh, "GroundSurface")        
+    height_stats = compute_stats([v[2] for v in roof_points]) if roof_points else compute_stats([0])
+    ground_z = min([v[2] for v in ground_points]) if ground_points else mesh.bounds[4]
 
+    # Shape calculations
+    shape_2d, shape_3d = cityjson.to_shapely(geom, vertices, ground_only=bool(ground_points))
     shape_2d_area = shape_2d.area
                          
+    # Volume calculations
     aabb_volume = boundingbox_volume(points)
     ch_volume = convexhull_volume(points)
     
-    # Compute OBB with shapely
     obb_2d, _ = cityjson.to_shapely(geom, vertices, ground_only=False)
     obb_2d = obb_2d.minimum_rotated_rectangle
-    min_z = np.min(mesh.clean().points[:, 2])
-    max_z = np.max(mesh.clean().points[:, 2])
+    min_z, max_z = np.min(mesh.clean().points[:, 2]), np.max(mesh.clean().points[:, 2])
     obb = geometry.extrude(obb_2d, min_z, max_z)
 
     # Get the dimensions of the 2D oriented bounding box
@@ -525,8 +491,8 @@ def process_building(building, building_id,
         "roof_surface_inclinations": str(roof_inclinations.tolist()),
         "roof_surface_types": str(roof_type.tolist()),
         # --- Plot     
-        "orientation_values": str(bin_count),
-        "orientation_edges": str(bin_edges),
+        #"orientation_values": str(bin_count),
+        #"orientation_edges": str(bin_edges),
         # --- Errors
         "errors": str(errors),
         "valid": len(errors) == 0,
@@ -543,15 +509,14 @@ def process_building(building, building_id,
         valid_grid = grid_point_count > 2
         
         shared_area = 0
-
         closest_distance = float('inf')
 
-        if len(neighbours) > 0:
+        if neighbours:
             # Get neighbour meshes
-            n_meshes = [cityjson.to_triangulated_polydata(geom, vertices).clean() for geom in neighbours]
-            
-            for mesh in n_meshes:
-                mesh.points -= t
+            for geom in neighbours:
+                neighbour_mesh = cityjson.to_triangulated_polydata(geom, vertices).clean()
+                neighbour_mesh.points -= t<
+                n_meshes.append(neighbour_mesh)
             
             # Compute shared walls
             walls = np.hstack([geometry.intersect_surfaces([fixed, neighbour]) for neighbour in n_meshes])
@@ -560,7 +525,8 @@ def process_building(building, building_id,
             # Find the closest distance
             for mesh in n_meshes:
                 mesh.compute_implicit_distance(fixed, inplace=True)
-                closest_distance = min(closest_distance, np.min(mesh["implicit_distance"]))
+                min_distance = np.min(mesh["implicit_distance"])
+                closest_distance = min(closest_distance, min_distance)
             
             closest_distance = max(closest_distance, 0)
         else:
@@ -618,8 +584,10 @@ def city_stats(input,
     
     cm = json.load(input)
     original_cm = deepcopy(cm)
+    # Only keep geometry for the specified LoD
     filter_level_of_detail(cm, filter_lod)
 
+    # Transform vertice coordinates back to their original values
     if "transform" in cm:
         s = cm["transform"]["scale"]
         t = cm["transform"]["translate"]
@@ -627,29 +595,24 @@ def city_stats(input,
                 for v in cm["vertices"]]
     else:
         verts = cm["vertices"]
+    vertices = np.array(verts)
 
+    # Val3dity report
     report = json.load(val3dity_report) if val3dity_report is not None else {}
     if report and not validate_report(report, cm):
         print("This doesn't seem like the right report for this file.")
         return
 
-    # mesh points
-    vertices = np.array(verts)
-
-    stats = {}
-
-    total_xy = np.zeros(36)
-    total_xz = np.zeros(36)
-    total_yz = np.zeros(36)
-
-    # Build the index of the city model
+    # Create R-tree index for the city model
     p = rtree.index.Property()
     p.dimension = 3
     r = rtree.index.Index(tree_generator_function(cm, vertices), properties=p)
 
     parent_attributes = get_parent_attributes(cm)
+    # Only keep objects of the specified building type
     filter_building_type(cm)
                    
+    stats = {}
     if single_threaded or jobs == 1:
         for cityobject_id in tqdm(cm["CityObjects"]):
             cityobject = cm["CityObjects"][cityobject_id]
@@ -715,10 +678,7 @@ def city_stats(input,
                         if break_on_error:
                             raise e
 
-    # orientation_plot(total_xy, bin_edges, title="Orientation plot")
-    # orientation_plot(total_xz, bin_edges, title="XZ plot")
-    # orientation_plot(total_yz, bin_edges, title="YZ plot")
-
+    # DataFrame creation
     click.echo("Building data frame...")
 
     df_original_attributes = pd.DataFrame.from_dict(parent_attributes, orient="index").round(precision)
@@ -743,12 +703,14 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
                         val3dity_report=val3dity_report, break_on_error=break_on_error, plot_buildings=plot_buildings,
                         single_threaded=single_threaded, jobs=jobs)
 
+    # Get input coordinate system
     crs = cm["metadata"]["referenceSystem"].split('/')[-1]
     if "+" in crs:
         crs1 = crs.split('+')[0]
         crs2 = crs.split('+')[1]
         crs = "EPSG:" + crs1 + "+" + "EPSG:" + crs2
-    
+
+    # Export into GPKG
     if output_gpkg is not None:
         # Export 2D GPKG
         gdf = gpd.GeoDataFrame(df, geometry="geometry_2d")
@@ -764,10 +726,12 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
 
     df = df.drop(columns=['geometry_2d','geometry_3d'])
 
+    # Export into CSV
     if output_csv is not None:
         click.echo("Writing output...")
         df.to_csv(output_csv)
 
+    # Export into CityJSON
     if output_cityjson is not None:
         for index, row in df.iterrows():
             building_part_id = str(row["building_ID"]) + "-0"
@@ -796,8 +760,7 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
         with open(output_cityjson, 'w') as out_file:
             json.dump(cm, out_file)
 
-
-# Assume semantic surfaces
+# Parameters
 @click.command()
 @click.argument("input", type=click.File("rb"))
 @click.option('-c', '--output-csv', type=click.File("wb"))
