@@ -629,14 +629,12 @@ def city_stats(input,
         verts = cm["vertices"]
 
     report = json.load(val3dity_report) if val3dity_report is not None else {}
-    if val3dity_report is not None and not validate_report(report, cm):
+    if report and not validate_report(report, cm):
         print("This doesn't seem like the right report for this file.")
         return
 
     # mesh points
     vertices = np.array(verts)
-
-    epointsListSemantics = {}
 
     stats = {}
 
@@ -657,7 +655,6 @@ def city_stats(input,
             cityobject = cm["CityObjects"][cityobject_id]
             
             errors = get_errors_from_report(report, cityobject_id, cm)
-            
             neighbours = get_neighbours(cm, cityobject_id, r, verts)
             
             try:
@@ -672,6 +669,7 @@ def city_stats(input,
                     parent_id = building_id.split('-')[0] if '-' in building_id else building_id
                     vals["building_ID"] = parent_id
                     stats[building_id] = vals
+
             except Exception as e:
                 print(f"Problem with {building_id}")
                 if break_on_error:
@@ -691,7 +689,6 @@ def city_stats(input,
                     cityobject = cm["CityObjects"][cityobject_id]
                     
                     errors = get_errors_from_report(report, cityobject_id, cm)
-
                     neighbours = get_neighbours(cm, cityobject_id, r, verts)
 
                     future = pool.submit(process_building,
@@ -705,7 +702,6 @@ def city_stats(input,
                     future.add_done_callback(lambda p: progress.update())
                     futures.append(future)
                 
-                results = []
                 for future in futures:
                     try:
                         building_id, vals = future.result()
@@ -713,6 +709,7 @@ def city_stats(input,
                             parent_id = building_id.split('-')[0] if '-' in building_id else building_id
                             vals["building_ID"] = parent_id
                             stats[building_id] = vals
+    
                     except Exception as e:
                         print(f"Problem with {building_id}")
                         if break_on_error:
