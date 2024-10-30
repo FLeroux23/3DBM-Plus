@@ -90,7 +90,7 @@ def get_wall_bearings(dataset, num_bins):
 
     normals = normals[wall_idxs]
 
-    azimuth = [point_azimuth(n) for n in normals]
+    azimuth = [get_azimuth(n[0], n[1]) for n in normals]
 
     sized = dataset.compute_cell_sizes()
     surface_areas = sized.cell_data["Area"][wall_idxs]
@@ -109,8 +109,8 @@ def get_roof_bearings(dataset, num_bins):
 
     normals = normals[roof_idxs]
 
-    xz_angle = [azimuth(n[0], n[2]) for n in normals]
-    yz_angle = [azimuth(n[1], n[2]) for n in normals]
+    xz_angle = [get_azimuth(n[0], n[2]) for n in normals]
+    yz_angle = [get_azimuth(n[1], n[2]) for n in normals]
 
     sized = dataset.compute_cell_sizes()
     surface_areas = sized.cell_data["Area"][roof_idxs]
@@ -199,26 +199,6 @@ def get_elevation_angle(dx, dy, dz):
     angle_deg = np.degrees(angle_rad)
 
     return angle_deg
-    
-def azimuth(dx, dy):
-    """Returns the azimuth angle for the given coordinates"""
-    
-    return (math.atan2(dx, dy) * 180 / np.pi) % 360
-
-def point_azimuth(p):
-    """Returns the azimuth angle of the given point"""
-
-    return azimuth(p[0], p[1])
-
-def point_zenith(p):
-    """Return the zenith angle of the given 3d point"""
-
-    z = [0.0, 0.0, 1.0]
-
-    cosine_angle = np.dot(p, z) / (np.linalg.norm(p) * np.linalg.norm(z))
-    angle = np.arccos(cosine_angle)
-
-    return (angle * 180 / np.pi) % 360
 
 def compute_stats(values, percentile = 90, percentage = 75):
     """
@@ -261,14 +241,6 @@ def get_parent_attributes(cm):
     }
     
     return building_attributes
-
-def add_value(dict, key, value):
-    """Does dict[key] = dict[key] + value"""
-
-    if key in dict:
-        dict[key] = dict[key] + value
-    else:
-        area[key] = value
 
 def convexhull_volume(points):
     """Returns the volume of the convex hull"""
