@@ -140,3 +140,10 @@ cython_debug/
 .vscode/
 
 *.csv
+*.ipynb
+*.png
+tests/
+__init__.py
+extractLod.py
+notebook.sh
+volume.py
