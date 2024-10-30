@@ -436,9 +436,29 @@ def process_building(building, building_id,
     # _ = plotter.show()
 
     points = cityjson.get_points(geom, vertices)
+    boundaries = cityjson.get_surface_boundaries(geom)
 
+    surface_areas = compute_surface_area(mesh).round(precision)
+                         
     area, point_count, surface_count = geometry.area_by_surface(mesh)
 
+    surface_normals = compute_surface_normal(boundaries, vertices).round(precision)
+    surface_azimuths = get_azimuth(surface_normals[:, 0], surface_normals[:, 1]).round(precision)
+    surface_inclinations = get_elevation_angle(surface_normals[:, 0], surface_normals[:, 1], surface_normals[:, 2]).round(precision)
+    
+    wall_azimuths, _ = list(filter_by_semantic_surface(mesh, surface_azimuths, "WallSurface"))
+    wall_inclinations, _ = list(filter_by_semantic_surface(mesh, surface_inclinations, "WallSurface"))
+    wall_areas, _ = list(filter_by_semantic_surface(mesh, surface_areas, "WallSurface"))
+
+    roof_azimuths, _ = list(filter_by_semantic_surface(mesh, surface_azimuths, "RoofSurface"))
+    roof_inclinations, _ = list(filter_by_semantic_surface(mesh, surface_inclinations, "RoofSurface"))
+    roof_areas, _ = list(filter_by_semantic_surface(mesh, surface_areas, "RoofSurface"))
+    
+    roof_type = np.array(roof_inclinations) > 3 # If the roof inclination is superior to 3 degrees, it is considered 'sloped'
+    surface_count["RoofSurfaceSloped"] = sum(roof_type)
+    surface_count["RoofSurfaceFlat"] = len(roof_type) - surface_count["RoofSurfaceSloped"] 
+    roof_type = np.where(roof_type, "sloped", "flat")
+                         
     if "semantics" in geom:
         roof_points = geometry.get_points_of_type(mesh, "RoofSurface")
         ground_points = geometry.get_points_of_type(mesh, "GroundSurface")
@@ -519,6 +539,17 @@ def process_building(building, building_id,
         "footprint_perimeter": shape_2d.length,
         "obb_width": S,
         "obb_length": L,
+        # --- Surface lists - area, orientation, inclination
+        "surface_areas": str(surface_areas.tolist()),
+        "surface_azimuths": str(surface_azimuths.tolist()),
+        "surface_inclinations": str(surface_inclinations.tolist()),
+        "wall_surface_areas": str(wall_areas.tolist()),
+        "wall_surface_azimuths": str(wall_azimuths.tolist()),
+        "wall_surface_inclinations": str(wall_inclinations.tolist()),
+        "roof_surface_areas": str(roof_areas.tolist()),
+        "roof_surface_azimuths": str(roof_azimuths.tolist()),
+        "roof_surface_inclinations": str(roof_inclinations.tolist()),
+        "roof_surface_types": str(roof_type.tolist()),
         # --- Plot     
         "orientation_values": str(bin_count),
         "orientation_edges": str(bin_edges),
@@ -770,9 +801,24 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
         for index, row in df.iterrows():
             building_id = row["building_ID"]
             lod = row["lod"]
+
+            surface_areas = row["surface_areas"]
+            surface_azimuths = row["surface_azimuths"]
+            surface_inclinations = row["surface_inclinations"]
             
             cityobject = cm["CityObjects"][building_id]
+            geometry = cityobject["geometry"][0]
 
+            cityobject_part = cm["CityObjects"][building_part_id]
+            
+            for geom in cityobject_part["geometry"]:
+                if str(geom["lod"]) == lod:
+                    geometry_part = geom
+            
+            geometry_part["semantics"]["+areas"] = [ast.literal_eval(surface_areas)]
+            geometry_part["semantics"]["+azimuths"] = [ast.literal_eval(surface_azimuths)]
+            geometry_part["semantics"]["+inclinations"] = [ast.literal_eval(surface_inclinations)]
+            
             cityobject["attributes"] = row.to_dict()
 
         with open(output_cityjson, 'w') as out_file:
