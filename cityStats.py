@@ -651,7 +651,7 @@ def city_stats(input,
                 vals = process_building(building=cityobject, building_id=cityobject_id,
                                         filter_building_id=filter_building_id,
                                         repair=repair, with_indices=with_indices,
-                                        density_2d=density_2d, density_3d=density_3d,
+                                        precision=precision, density_2d=density_2d, density_3d=density_3d,
                                         vertices=vertices, neighbours=neighbours,
                                         plot_buildings=plot_buildings, errors=errors)
                 
@@ -685,7 +685,7 @@ def city_stats(input,
                                          building=cityobject, building_id=cityobject_id,
                                          filter_building_id=filter_building_id,
                                          repair=repair, with_indices=with_indices,
-                                         density_2d=density_2d, density_3d=density_3d,
+                                         precision=precision, density_2d=density_2d, density_3d=density_3d,
                                          vertices=vertices, neighbours=neighbours,
                                          plot_buildings=plot_buildings, errors=errors)
                     
