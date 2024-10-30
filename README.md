@@ -1,20 +1,31 @@
 # This fork of **3DBM** includes optimizations for improved performance
 
 ## Key Updates:
+- **New Features**:
+     - Output Formats: Added support for **CityJSON**, **CSV** and **GPKG** (2D/3D)
+     - New Parameters:
+          -   -o / --output-cityjson
+          -   -c / --output-csv
+          -   -g / --output-gpkg
+          -   -l / --filter-lod
+          -   -f / --filter-building-id
+          -   -i / --with-indices
+          -   --precision
+          -   ~~[--without-indices]~~ (removed)
+     - Additional Semantic Surface Attributes: Now includes **area**, **azimuth**, **inclination** and **roof type** (sloped or flat)
+- **Performance Improvements**: Enhanced speed and efficiency throughout the tool
+- **Dependency Changes**:
+     - Replaced the *PyMesh* library with ***Trimesh*** for simplified installation and setup, as PyMesh has not been maintained for years, making it challenging to install
+     - Updated compatibility with the latest versions of ***PyVista*** (0.44.1) and ***shapely*** (2.0.6)
 
-- **Performance Improvements**: Enhanced speed and efficiency
-- **Dependency Change**:
-     - Replaced the *PyMesh* library with ***Trimesh***, simplifying installation and setup. PyMesh has not been maintained for years, making it challenging to install
-     - The tool is now compatible with the latest version of ***PyVista*** (0.44.1) and ***shapely*** (2.0.6)
+## Usage Recommendation:
+For optimal performance, I highly recommend using **multi-threading** with the **-j** argument, which significantly speeds up processing.
 
-## Usage recommendation:
-I highly recommend running with **multi-threading** using the **-j** argument, as it significantly speeds up the processing.
-
-With these changes, 3DBM is now easier to use and ready to run!
+With these updates, 3DBM is now easier to use and fully operational!
 
 ## Installation
 
-You need to install all dependencies by running the following command:
+To install all dependencies, run the following command:
 
 ```
 pip install -r requirements.txt
