@@ -1,27 +1,29 @@
+# -*- coding: utf-8 -*-
+import ast
 import json
 import math
-import ast
 from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 
 import click
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 import pyvista as pv
 import rtree.index
 import scipy.spatial as ss
-from scipy import stats
 from pymeshfix import MeshFix
+from scipy import stats
 from tqdm import tqdm
 # 3dbm functions
-from helpers.geometry import surface_normal, compute_surface_area
 import cityjson
 import geometry
 import shape_index as si
+from helpers.geometry import surface_normal, compute_surface_area
 
-
+# ---
+# Functions
 def compute_surface_normal(boundaries, vertices):
     normals = np.zeros((len(boundaries), 3))
     
@@ -358,11 +360,11 @@ def process_building(building, building_id,
                      errors, plot_buildings,
                      vertices, neighbours=[], custom_indices=[]):
 
+                         
+    # --- Skip conditions
     # Early exit if building ID doesn't match filter
     if filter_building_id is not None and filter_building_id != building_id:
         return building_id, None
-
-    # TODO: Add options for all skip conditions below
     # Skip if type is not Building or Building part
     if not building["type"] in ["Building", "BuildingPart"]:
         return building_id, None
@@ -371,8 +373,10 @@ def process_building(building, building_id,
         return building_id, None
 
     geom = building["geometry"][0]
-                         
-    # Convert geometry to mesh
+    boundaries = cityjson.get_surface_boundaries(geom)
+    points = cityjson.get_points(geom, vertices)
+    
+    # --- Mesh creation
     mesh = cityjson.to_polydata(geom, vertices)
 
     try:
@@ -387,19 +391,18 @@ def process_building(building, building_id,
         print(f"Plotting {building_id}")
         tri_mesh.plot(show_grid=True)
 
-    # Compute surface bearings
+    # --- Compute surface bearings
     bin_count, bin_edges = get_wall_bearings(mesh, 36)
     xzc, yzc, be = get_roof_bearings(mesh, 36)
 
-    points = cityjson.get_points(geom, vertices)
-    boundaries = cityjson.get_surface_boundaries(geom)
-    surface_areas = compute_surface_area(mesh).round(precision)
+    # --- Compute surface properties
     area, point_count, surface_count = geometry.area_by_surface(mesh)
                          
     # --- Compute surface properties
     surface_normals = compute_surface_normal(boundaries, vertices).round(precision)
     surface_azimuths = get_azimuth(surface_normals[:, 0], surface_normals[:, 1]).round(precision)
     surface_inclinations = get_elevation_angle(surface_normals[:, 0], surface_normals[:, 1], surface_normals[:, 2]).round(precision)
+    surface_areas = compute_surface_area(mesh).round(precision)
     # Wall properties
     wall_azimuths, _ = list(filter_by_semantic_surface(mesh, surface_azimuths, "WallSurface"))
     wall_inclinations, _ = list(filter_by_semantic_surface(mesh, surface_inclinations, "WallSurface"))
@@ -414,28 +417,28 @@ def process_building(building, building_id,
     surface_count["RoofSurfaceFlat"] = len(roof_type) - surface_count["RoofSurfaceSloped"] 
     roof_type = np.where(roof_type, "sloped", "flat")
 
-    # Height statistics
-    roof_points = geometry.get_points_of_type(mesh, "RoofSurface")
-    ground_points = geometry.get_points_of_type(mesh, "GroundSurface")        
+    # --- Height statistics
+    roof_points = (geometry.get_points_of_type(mesh, "RoofSurface") if "semantics" in geom else [])
+    ground_points = (geometry.get_points_of_type(mesh, "GroundSurface") if "semantics" in geom else [])
     height_stats = (compute_stats([v[2] for v in roof_points]) if roof_points.size > 0 else compute_stats([0]))
     ground_z = (min([v[2] for v in ground_points]) if ground_points.size > 0 else mesh.bounds[4])
 
-    # Shape calculations
+    # --- Shape calculations
     shape_2d, shape_3d = cityjson.to_shapely(geom, vertices, ground_only=bool(ground_points))
     shape_2d_area = shape_2d.area
                          
-    # Volume calculations
+    # --- Volume calculations
     aabb_volume = boundingbox_volume(points)
     ch_volume = convexhull_volume(points)
-    
+
+    # --- Bounding box calculations
     obb_2d, _ = cityjson.to_shapely(geom, vertices, ground_only=False)
     obb_2d = obb_2d.minimum_rotated_rectangle
     min_z, max_z = np.min(mesh.clean().points[:, 2]), np.max(mesh.clean().points[:, 2])
     obb = geometry.extrude(obb_2d, min_z, max_z)
-
-    # Get the dimensions of the 2D oriented bounding box
     S, L = si.get_box_dimensions(obb_2d)
 
+    # --- 3DBM attribute list
     values = {
         # --- Identifiers
         "building_ID": -1,
@@ -491,8 +494,8 @@ def process_building(building, building_id,
         "roof_surface_inclinations": str(roof_inclinations.tolist()),
         "roof_surface_types": str(roof_type.tolist()),
         # --- Plot     
-        #"orientation_values": str(bin_count),
-        #"orientation_edges": str(bin_edges),
+        "orientation_values": str(bin_count),
+        "orientation_edges": str(bin_edges),
         # --- Errors
         "errors": str(errors),
         "valid": len(errors) == 0,
@@ -532,8 +535,8 @@ def process_building(building, building_id,
         else:
             closest_distance = "NA"
 
+        # --- 3DBM indices list
         builder = StatValuesBuilder(values, custom_indices)
-
         builder.add_index("2d_grid_point_count", lambda: len(si.create_grid_2d(shape_2d, density=density_2d)))
         builder.add_index("3d_grid_point_count", lambda: grid_point_count)
         builder.add_index("circularity_2d", lambda: si.circularity(shape_2d))
