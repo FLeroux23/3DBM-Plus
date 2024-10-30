@@ -50,6 +50,13 @@ def filter_level_of_detail(cm, lod):
 
         cityobject["geometry"] = new_geom
 
+def filter_building_type(cm, type='BuildingPart'):
+    filtered_objects = {
+        key: value for key, value in cm["CityObjects"].items() if value["type"] == type
+    }
+    
+    cm["CityObjects"] = filtered_objects
+
 def get_bearings(values, num_bins, weights):
     """Divides the values depending on the bins"""
 
@@ -638,6 +645,7 @@ def city_stats(input,
     r = rtree.index.Index(tree_generator_function(cm, vertices), properties=p)
 
     parent_attributes = get_parent_attributes(cm)
+    filter_building_type(cm)
                    
     if single_threaded or jobs == 1:
         for cityobject_id in tqdm(cm["CityObjects"]):
