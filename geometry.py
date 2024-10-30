@@ -56,14 +56,18 @@ def extrude(shape, min, max):
 
     return mesh
 
-def area_by_surface(mesh, tri_mesh=None):
+def area_by_surface(mesh, sloped_angle_threshold=3, tri_mesh=None):
     """Compute the area per semantic surface"""
 
+    sloped_threshold = np.cos(np.radians(sloped_angle_threshold))
+    
     # Initialize dictionaries for area, point count, and surface count
     area = {
         "GroundSurface": 0,
         "WallSurface": 0,
-        "RoofSurface": 0
+        "RoofSurface": 0,
+        "RoofSurfaceFlat": 0,
+        "RoofSurfaceSloped": 0
     }
 
     point_count = {
@@ -75,7 +79,9 @@ def area_by_surface(mesh, tri_mesh=None):
     surface_count = {
         "GroundSurface": 0,
         "WallSurface": 0,
-        "RoofSurface": 0
+        "RoofSurface": 0,
+        "RoofSurfaceFlat": 0,
+        "RoofSurfaceSloped": 0
     }
 
     # Compute the triangulated surfaces to fix issues with areas
@@ -85,19 +91,29 @@ def area_by_surface(mesh, tri_mesh=None):
     if "semantics" in mesh.cell_data:
         # Compute area per surface type
         sized = tri_mesh.compute_cell_sizes()
-        surface_areas = sized.cell_data["Area"]
+        area_data = sized.cell_data["Area"]
 
         points_per_cell = np.array([mesh.get_cell(i).n_points for i in range(mesh.number_of_cells)])
 
         # Process each surface type
-        for surface_type in area.keys():
-            # Create boolean index arrays for triangle and face semantics
-            triangle_idxs = tri_mesh.cell_data["semantics"] == surface_type
-            face_idxs = mesh.cell_data["semantics"] == surface_type
-            
-            area[surface_type] = surface_areas[triangle_idxs].sum()
-            point_count[surface_type] = points_per_cell[face_idxs].sum()
-            surface_count[surface_type] = face_idxs.sum()
+        for surface_type in ["GroundSurface", "WallSurface", "RoofSurface"]:
+            triangle_idxs_mask = [s == surface_type for s in tri_mesh.cell_data["semantics"]]
+            triangle_idxs = [i for i,s in enumerate(tri_mesh.cell_data["semantics"]) if s == surface_type]
+
+            if surface_type == "RoofSurface":
+                normals = sized.cell_normals[triangle_idxs]
+                dot_products = normals.dot([0, 0, 1])
+                sloped_mask = dot_products < sloped_threshold
+
+                area["RoofSurfaceSloped"] += area_data[triangle_idxs][sloped_mask].sum()
+                area["RoofSurfaceFlat"] += area_data[triangle_idxs][~sloped_mask].sum()
+                area["RoofSurface"] += area_data[triangle_idxs].sum()
+            else:
+                area[surface_type] = area_data[triangle_idxs_mask].sum()
+                
+            face_idxs = [s == surface_type for s in mesh.cell_data["semantics"]]
+            point_count[surface_type] = sum(points_per_cell[face_idxs])
+            surface_count[surface_type] = sum(face_idxs)
 
     return area, point_count, surface_count
 
@@ -153,6 +169,62 @@ def cluster_faces(data, threshold=0.1):
     
     return clustering.labels_, clustering.n_clusters_
 
+def cluster_faces_simple(data, threshold=0.1):
+    """Clusters the given planes"""
+    # we can delete the third column because it is all 0's for vertical planes
+    ndata = np.delete(data, 2, 1)
+
+    # flip normals so that they can not be pointing in opposite direction for same plane
+    neg_x = ndata[:,0] < 0
+    ndata[neg_x,:] = ndata[neg_x,:] * -1
+
+    dist_mat = distance_matrix(ndata, ndata)
+
+    clustering = AgglomerativeClustering(n_clusters=None,
+                                         distance_threshold=threshold,
+                                         metric='precomputed',
+                                         linkage='average').fit(dist_mat)
+    
+    return clustering.labels_, clustering.n_clusters_
+
+def cluster_faces_alternative(data, angle_threshold=0.005, dist_threshold=0.2):
+    """Clusters the given planes"""
+    def groupby(a, clusterids):
+        return out, sidx
+
+    ndata = np.array(data)
+
+    # new method - angle clustering
+    angle_clustering = AgglomerativeClustering(n_clusters=None,
+                                         metric='cosine',
+                                         distance_threshold=angle_threshold,
+                                         linkage='average').fit(ndata[:,:3])
+    # group angle clusters
+    angle_clusters, remap = groupby(ndata[:,3:], angle_clustering.labels_)
+
+    # get dist clusters for each angle cluster
+    labels_ = np.empty(0, dtype=int)
+    min_label = 0
+    for angle_cluster in angle_clusters:
+        if angle_cluster.size == 1:
+            labels_ = np.hstack((labels_, min_label))
+            min_label += 1
+        else:
+            dist_clustering = AgglomerativeClustering(n_clusters=None,
+                                                metric='euclidean',
+                                                distance_threshold=dist_threshold,
+                                                linkage='average').fit(angle_cluster)
+            labels_ = np.hstack((labels_, dist_clustering.labels_ + min_label))
+            min_label = labels_.max()+1
+    
+    # re order back to input data order
+    n_planes = ndata.shape[0]
+    labels = np.empty(n_planes, dtype=int)
+    labels[remap] = labels_
+
+    n_clusters = (np.bincount(labels)!=0).sum()
+    return labels, n_clusters
+
 def intersect_surfaces(meshes):
     """Return the intersection between the surfaces of multiple meshes"""
 
@@ -202,7 +274,7 @@ def intersect_surfaces(meshes):
 
         # Process intersection result
         if inter.area > 0.001:
-            if inter.type == "MultiPolygon" or inter.type == "GeometryCollection":
+            if inter.type in {"MultiPolygon", "GeometryCollection"}:
                 for geom in inter.geoms:
                     if geom.type == "Polygon":
                         get_area_from_polygon(areas, geom, normal, origin)

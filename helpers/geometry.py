@@ -21,16 +21,60 @@ def surface_normal(poly):
         n[2] += (v_curr[0] - v_next[0]) * (v_curr[1] + v_next[1])
 
     # Check for zero-length normal
-    if np.all(n == 0):
-        raise ValueError("No normal. Possible collinear points!")
+    norm_length = np.linalg.norm(n)
+    if norm_length == 0:  # Prevent division by zero
+        return -1
 
-    return (n / np.linalg.norm(n)).tolist()
+    normalized = n / norm_length
+
+    return normalized
+
+def compute_surface_area(mesh):
+    def triangle_area(v1, v2, v3):
+        # Calculate the area of a triangle given its vertices
+        a = np.linalg.norm(v2 - v1)
+        b = np.linalg.norm(v3 - v1)
+        c = np.linalg.norm(v3 - v2)
+        s = (a + b + c) / 2.0  # Semi-perimeter
+        area_term = s * (s - a) * (s - b) * (s - c)  # Heron's formula
+        
+        # Check for negative area term due to floating-point precision issues
+        if area_term < 0:
+            return 0
+    
+        area = np.sqrt(area_term)
+        
+        return area
+
+    boundaries = mesh.faces
+    vertices = mesh.points
+
+    areas = []
+
+    # Use an index to track the current position in the faces array
+    index = 0
+    while index < boundaries.size:
+        num_vertices = boundaries[index]  # Get the number of vertices for the current face
+        index += 1  # Move to the first vertex index
+        face_indices = boundaries[index:index + num_vertices]  # Get the vertex indices
+        points = vertices[face_indices]  # Get the vertex coordinates
+        
+        # Calculate area by triangulating the polygon
+        area = 0.0
+        for i in range(1, num_vertices - 1):
+            area += triangle_area(points[0], points[i], points[i + 1])
+        
+        areas.append(area)  # Append the area to the list
+        index += num_vertices  # Move to the next face
+
+    return np.array(areas)
 
 def axes_of_normal(normal):
     """Returns an x-axis and y-axis on a plane of the given normal"""
     
     normal = np.array(normal)  # Ensure normal is a NumPy array for vector operations
 
+    # Choose the x-axis based on the largest component
     if abs(normal[2]) > 0.001:  # Check z-component
         x_axis = np.array([1, 0, -normal[0] / normal[2]])
     elif abs(normal[1]) > 0.001:  # Check y-component
