@@ -696,7 +696,7 @@ def city_stats(input,
                 for future in futures:
                     try:
                         vals = future.result()
-                        if vals is not None:
+                        if vals is not None and '-' in cityobject_id:
                             parent_id = cityobject_id.split('-')[0] if '-' in cityobject_id else cityobject_id
                             vals["building_ID"] = parent_id
                             stats[cityobject_id] = vals
@@ -762,10 +762,6 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
         for index, row in df.iterrows():
             building_id = row["building_ID"]
             lod = row["lod"]
-            
-            surface_areas = row["surface_areas"]
-            surface_azimuths = row["surface_azimuths"]
-            surface_inclinations = row["surface_inclinations"]
             
             cityobject = cm["CityObjects"][building_id]
 
