@@ -361,14 +361,14 @@ def process_building(building, building_id,
                      vertices, neighbours=[], custom_indices=[]):
 
     # --- Skip conditions
-    # Early exit if building ID doesn't match filter
-    if filter_building_id is not None and filter_building_id != building_id:
+    # Skip if building ID doesn't match filter when "-f --filter-building-id" is specified
+    if filter_building_id and filter_building_id != building_id:
         return building_id, None
     # Skip if type is not Building or Building part
-    if not building["type"] in ["Building", "BuildingPart"]:
+    if building["type"] not in ["Building", "BuildingPart"]:
         return building_id, None
-    # Skip if no geometry
-    if not "geometry" in building or len(building["geometry"]) == 0:
+    # Skip if no geometry is found
+    if "geometry" not in building or len(building["geometry"]) == 0:
         return building_id, None
 
     # Geometric variables initialization
@@ -386,7 +386,7 @@ def process_building(building, building_id,
         return building_id, {"type": building["type"]}
     tri_mesh, t = geometry.move_to_origin(tri_mesh)
     fixed = MeshFix(tri_mesh).repair().mesh if repair else tri_mesh
-    # If "plot_buildings" parameter is chosen
+    # Plotting each building if "--plot-buildings" parameter is specified
     if plot_buildings:
         print(f"Plotting {building_id}")
         tri_mesh.plot(show_grid=True)
@@ -505,7 +505,7 @@ def process_building(building, building_id,
         "geometry_3d": shape_3d
     }
 
-    # If "with_indices" parameter is chosen
+    # Generating 3DBM indices if "-i --with-indices" parameter is specified
     if with_indices:
         voxel = pv.voxelize(tri_mesh, density=density_3d, check_surface=False)
         grid = voxel.cell_centers().points
@@ -586,12 +586,11 @@ def city_stats(input,
                val3dity_report, break_on_error, plot_buildings,
                single_threaded, jobs):
     
-    cm = json.load(input)
-    original_cm = deepcopy(cm)
-    # Only keep geometry for the specified LoD
-    filter_level_of_detail(cm, filter_lod)
+    cm = json.load(input) # Load input CityJSON
+    original_cm = deepcopy(cm) # Create a deep copy of the input cityjson for later
+    filter_level_of_detail(cm, filter_lod) # Filtering out geometries that match the specified LoD (default: 2.2)
 
-    # Transform vertice coordinates back to their original values
+    # Transform vertex coordinates back to their original georeferenced values
     if "transform" in cm:
         s = cm["transform"]["scale"]
         t = cm["transform"]["translate"]
@@ -602,7 +601,7 @@ def city_stats(input,
     vertices = np.array(verts)
 
     # Val3dity report
-    report = json.load(val3dity_report) if val3dity_report is not None else {}
+    report = json.load(val3dity_report) if val3dity_report else {}
     if report and not validate_report(report, cm):
         print("This doesn't seem like the right report for this file.")
         return
@@ -612,18 +611,20 @@ def city_stats(input,
     p.dimension = 3
     r = rtree.index.Index(tree_generator_function(cm, vertices), properties=p)
 
-    parent_attributes = get_parent_attributes(cm)
-    # Only keep objects of the specified building type
-    filter_building_type(cm)
+    parent_attributes = get_parent_attributes(cm) # Retrieving building attributes
+
+    filter_building_type(cm) # Filtering out objects that match the specified building type (default: BuildingPart)
                    
     stats = {}
+    # Single-threaded processing
     if single_threaded or jobs == 1:
         for cityobject_id in tqdm(cm["CityObjects"]):
             cityobject = cm["CityObjects"][cityobject_id]
-            
-            errors = get_errors_from_report(report, cityobject_id, cm)
+            # Finding neighbouring buildings
             neighbours = get_neighbours(cm, cityobject_id, r, verts)
-            
+            # Retrieving errors for the current building from the validity report
+            errors = get_errors_from_report(report, cityobject_id, cm)
+            # Generating 3DBM metrics for the current building
             try:
                 building_id, vals = process_building(building=cityobject, building_id=cityobject_id,
                                         filter_building_id=filter_building_id,
@@ -631,7 +632,7 @@ def city_stats(input,
                                         precision=precision, density_2d=density_2d, density_3d=density_3d,
                                         vertices=vertices, neighbours=neighbours,
                                         plot_buildings=plot_buildings, errors=errors)
-                
+                # Add autobuilding ID for later joining with original attributes
                 if vals is not None:
                     parent_id = building_id.split('-')[0] if '-' in building_id else building_id
                     vals["building_ID"] = parent_id
@@ -654,10 +655,11 @@ def city_stats(input,
 
                 for cityobject_id in cm["CityObjects"]:
                     cityobject = cm["CityObjects"][cityobject_id]
-                    
-                    errors = get_errors_from_report(report, cityobject_id, cm)
+                    # Finding neighbouring buildings
                     neighbours = get_neighbours(cm, cityobject_id, r, verts)
-
+                    # Retrieving errors for the current building from the validity report
+                    errors = get_errors_from_report(report, cityobject_id, cm)
+                    # Generating 3DBM metrics for the current building
                     future = pool.submit(process_building,
                                          building=cityobject, building_id=cityobject_id,
                                          filter_building_id=filter_building_id,
@@ -672,6 +674,7 @@ def city_stats(input,
                 for future in futures:
                     try:
                         building_id, vals = future.result()
+                        # Add autobuilding ID for later joining with original attributes
                         if vals is not None:
                             parent_id = building_id.split('-')[0] if '-' in building_id else building_id
                             vals["building_ID"] = parent_id
@@ -687,7 +690,7 @@ def city_stats(input,
 
     df_original_attributes = pd.DataFrame.from_dict(parent_attributes, orient="index").round(precision)
     df_3dbm_attributes = pd.DataFrame.from_dict(stats, orient="index").round(precision)
-                   
+    # Combine original attributes and 3DBM attributes together
     merged_df = pd.merge(df_original_attributes.reset_index(), df_3dbm_attributes.reset_index(), left_on='index', right_on='building_ID', how='inner')
     merged_df = merged_df.drop(columns=['index_x', 'index_y'])
 
@@ -707,21 +710,20 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
                         val3dity_report=val3dity_report, break_on_error=break_on_error, plot_buildings=plot_buildings,
                         single_threaded=single_threaded, jobs=jobs)
 
-    # Get input coordinate system
+    # Retrieving the CRS from the input CityJSON
     crs = cm["metadata"]["referenceSystem"].split('/')[-1]
     if "+" in crs:
         crs1 = crs.split('+')[0]
         crs2 = crs.split('+')[1]
         crs = "EPSG:" + crs1 + "+" + "EPSG:" + crs2
 
-    # Export into GPKG
+    # Export into GPKG if "-g --output-gpkg" is specified
     if output_gpkg is not None:
         # Export 2D GPKG
         gdf = gpd.GeoDataFrame(df, geometry="geometry_2d")
         gdf = gdf.drop(columns='geometry_3d')
         output_gpkg_2d = output_gpkg.split(".")[0] + "_2D." + output_gpkg.split(".")[1]
         gdf.to_file(output_gpkg_2d, crs=crs, driver="GPKG", engine="fiona")
-
         # Export 3D GPKG
         gdf = gpd.GeoDataFrame(df, geometry="geometry_3d")
         gdf = gdf.drop(columns='geometry_2d')
@@ -730,12 +732,12 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
 
     df = df.drop(columns=['geometry_2d','geometry_3d'])
 
-    # Export into CSV
+    # Export into CSV if "-c --output-csv" is specified
     if output_csv is not None:
         click.echo("Writing output...")
         df.to_csv(output_csv)
 
-    # Export into CityJSON
+    # Export into CityJSON if "-o --output-cityjson" is specified
     if output_cityjson is not None:
         for index, row in df.iterrows():
             building_part_id = str(row["building_ID"]) + "-0"
