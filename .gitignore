@@ -142,6 +142,8 @@ cython_debug/
 *.csv
 *.ipynb
 *.png
+helpers/minimumBoundingBox.py
+helpers/smallestenclosingcircle.py
 tests/
 __init__.py
 cityCompare.py
