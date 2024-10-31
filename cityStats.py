@@ -360,7 +360,6 @@ def process_building(building, building_id,
                      errors, plot_buildings,
                      vertices, neighbours=[], custom_indices=[]):
 
-                         
     # --- Skip conditions
     # Early exit if building ID doesn't match filter
     if filter_building_id is not None and filter_building_id != building_id:
@@ -372,6 +371,7 @@ def process_building(building, building_id,
     if not "geometry" in building or len(building["geometry"]) == 0:
         return building_id, None
 
+    # Geometric variables initialization
     geom = building["geometry"][0]
     boundaries = cityjson.get_surface_boundaries(geom)
     points = cityjson.get_points(geom, vertices)
@@ -386,7 +386,7 @@ def process_building(building, building_id,
         return building_id, {"type": building["type"]}
     tri_mesh, t = geometry.move_to_origin(tri_mesh)
     fixed = MeshFix(tri_mesh).repair().mesh if repair else tri_mesh
-
+    # If "plot_buildings" parameter is chosen
     if plot_buildings:
         print(f"Plotting {building_id}")
         tri_mesh.plot(show_grid=True)
@@ -424,7 +424,7 @@ def process_building(building, building_id,
     ground_z = (min([v[2] for v in ground_points]) if ground_points.size > 0 else mesh.bounds[4])
 
     # --- Shape calculations
-    shape_2d, shape_3d = cityjson.to_shapely(geom, vertices, ground_only=bool(ground_points))
+    shape_2d, shape_3d = cityjson.to_shapely(geom, vertices, ground_only=bool(ground_points.size > 0))
     shape_2d_area = shape_2d.area
                          
     # --- Volume calculations
@@ -505,6 +505,7 @@ def process_building(building, building_id,
         "geometry_3d": shape_3d
     }
 
+    # If "with_indices" parameter is chosen
     if with_indices:
         voxel = pv.voxelize(tri_mesh, density=density_3d, check_surface=False)
         grid = voxel.cell_centers().points
@@ -677,7 +678,7 @@ def city_stats(input,
                             stats[building_id] = vals
     
                     except Exception as e:
-                        print(f"Problem with {building_id}")
+                        print(f"Problem with {cityobject_id}")
                         if break_on_error:
                             raise e
 
