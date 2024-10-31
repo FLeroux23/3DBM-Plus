@@ -1,9 +1,9 @@
 # This fork of **3DBM** includes optimizations for improved performance
 
-## Key Updates:
-- **New Features**:
-     - Output Formats: Added support for **CityJSON**, **CSV** and **GPKG** (2D/3D)
-     - New Parameters:
+## Key Update(s):
+- **New Feature(s)**:
+     - Output Format(s): Added support for **CityJSON**, **CSV** and **GPKG** (2D/3D)
+     - New Parameter(s):
           -   -o / --output-cityjson
           -   -c / --output-csv
           -   -g / --output-gpkg
@@ -12,9 +12,9 @@
           -   -i / --with-indices
           -   --precision
           -   ~~[--without-indices]~~ (removed)
-     - Additional Semantic Surface Attributes: Now includes **area**, **azimuth**, **inclination** and **roof type** (sloped or flat)
-- **Performance Improvements**: Enhanced speed and efficiency throughout the tool
-- **Dependency Changes**:
+     - Additional Semantic Surface Attribute(s): Now includes **area**, **azimuth**, **inclination** and **roof type** (sloped or flat)
+- **Performance Improvement(s)**: Enhanced speed and efficiency throughout the tool
+- **Dependency Change(s)**:
      - Replaced the *PyMesh* library with ***Trimesh*** for simplified installation and setup, as PyMesh has not been maintained for years, making it challenging to install
      - Updated compatibility with the latest versions of ***PyVista*** (0.44.1) and ***shapely*** (2.0.6)
 
