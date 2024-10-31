@@ -140,3 +140,12 @@ cython_debug/
 .vscode/
 
 *.csv
+*.ipynb
+*.png
+tests/
+__init__.py
+cityCompare.py
+cityPlot.py
+extractLod.py
+notebook.sh
+volume.py
