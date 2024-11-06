@@ -745,7 +745,7 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
     # Export into CSV if "-c --output-csv" is specified
     if output_csv:
         click.echo("Writing output...")
-        df.to_csv(output_csv, index=False)
+        df.drop(columns=['surface_areas', 'surface_azimuths', 'surface_inclinations']).to_csv(output_csv, index=False)
 
     df[['surface_areas', 'surface_azimuths', 'surface_inclinations']] = df[['surface_areas', 'surface_azimuths', 'surface_inclinations']].applymap(ast.literal_eval)
                       
