@@ -705,9 +705,10 @@ def export_to_gpkg(gdf, output_gpkg, geometry_col, crs):
     columns_to_drop = ['surface_areas', 'surface_azimuths', 'surface_inclinations', 
                        'wall_surface_areas', 'wall_surface_azimuths', 'wall_surface_inclinations',
                        'roof_surface_areas', 'roof_surface_azimuths', 'roof_surface_inclinations', 'roof_surface_types']
-    
     gdf = gdf.drop(columns=[col for col in columns_to_drop if col in gdf.columns])
-    output_file = output_gpkg.split(".")[0] + f"_{geometry_col.upper()}.gpkg"
+
+    geometry_type = geometry_col.split('_')[1].upper()
+    output_file = f"{output_gpkg.rsplit('.', 1)[0]}_{geometry_type}.gpkg"
     
     gdf.to_file(output_file, crs=crs, driver="GPKG", engine="fiona")
 
