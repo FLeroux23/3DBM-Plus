@@ -737,16 +737,16 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
         # Export 3D GPKG
         export_to_gpkg(df, output_gpkg, 'geometry_3d', crs)
 
-    df = df.drop(columns=['geometry_2d','geometry_3d'])
+    drop_columns = ['geometry_2d','geometry_3d',
+                    'wall_surface_areas', 'wall_surface_azimuths', 'wall_surface_inclinations',
+                    'roof_surface_areas', 'roof_surface_azimuths', 'roof_surface_inclinations', 'roof_surface_types']
+    df = df.drop(columns=drop_columns)
 
     # Export into CSV if "-c --output-csv" is specified
     if output_csv:
         click.echo("Writing output...")
         df.to_csv(output_csv, index=False)
 
-    drop_columns = ['wall_surface_areas', 'wall_surface_azimuths', 'wall_surface_inclinations',
-                    'roof_surface_areas', 'roof_surface_azimuths', 'roof_surface_inclinations', 'roof_surface_types']
-    df = df.drop(columns=drop_columns)
     df[['surface_areas', 'surface_azimuths', 'surface_inclinations']] = df[['surface_areas', 'surface_azimuths', 'surface_inclinations']].applymap(ast.literal_eval)
                       
     # Export into CityJSON if "-o --output-cityjson" is specified
