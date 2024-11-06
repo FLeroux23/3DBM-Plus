@@ -695,7 +695,22 @@ def city_stats(input,
     merged_df = merged_df.drop(columns=['index_x', 'index_y'])
 
     return merged_df, original_cm
-        
+
+def export_to_gpkg(gdf, output_gpkg, geometry_col, crs):
+    gdf = gpd.GeoDataFrame(gdf, geometry=geometry_col)
+
+    other_geometry_col = 'geometry_3d' if geometry_col == 'geometry_2d' else 'geometry_2d'
+    gdf = gdf.drop(columns=[other_geometry_col], errors='ignore')
+    
+    columns_to_drop = ['surface_areas', 'surface_azimuths', 'surface_inclinations', 
+                       'wall_surface_areas', 'wall_surface_azimuths', 'wall_surface_inclinations',
+                       'roof_surface_areas', 'roof_surface_azimuths', 'roof_surface_inclinations', 'roof_surface_types']
+    
+    gdf = gdf.drop(columns=[col for col in columns_to_drop if col in gdf.columns])
+    output_file = output_gpkg.split(".")[0] + f"_{geometry_col.upper()}.gpkg"
+    
+    gdf.to_file(output_file, crs=crs, driver="GPKG", engine="fiona")
+
 def process_files(input, output_cityjson, output_csv, output_gpkg,
                   filter_lod, filter_building_id,
                   repair, with_indices,
@@ -713,53 +728,45 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
     # Retrieving the CRS from the input CityJSON
     crs = cm["metadata"]["referenceSystem"].split('/')[-1]
     if "+" in crs:
-        crs1 = crs.split('+')[0]
-        crs2 = crs.split('+')[1]
-        crs = "EPSG:" + crs1 + "+" + "EPSG:" + crs2
+        crs = "EPSG:" + "+EPSG:".join(crs.split('+'))
 
     # Export into GPKG if "-g --output-gpkg" is specified
-    if output_gpkg is not None:
+    if output_gpkg:
         # Export 2D GPKG
-        gdf = gpd.GeoDataFrame(df, geometry="geometry_2d")
-        gdf = gdf.drop(columns='geometry_3d')
-        output_gpkg_2d = output_gpkg.split(".")[0] + "_2D." + output_gpkg.split(".")[1]
-        gdf.to_file(output_gpkg_2d, crs=crs, driver="GPKG", engine="fiona")
+        export_to_gpkg(df, output_gpkg, 'geometry_2d', crs)
         # Export 3D GPKG
-        gdf = gpd.GeoDataFrame(df, geometry="geometry_3d")
-        gdf = gdf.drop(columns='geometry_2d')
-        output_gpkg_3d = output_gpkg.split(".")[0] + "_3D." + output_gpkg.split(".")[1]
-        gdf.to_file(output_gpkg_3d, crs=crs, driver="GPKG", engine="fiona")
+        export_to_gpkg(df, output_gpkg, 'geometry_3d', crs)
 
     df = df.drop(columns=['geometry_2d','geometry_3d'])
 
     # Export into CSV if "-c --output-csv" is specified
-    if output_csv is not None:
+    if output_csv:
         click.echo("Writing output...")
-        df.to_csv(output_csv)
+        df.to_csv(output_csv, index=False)
 
+    drop_columns = ['wall_surface_areas', 'wall_surface_azimuths', 'wall_surface_inclinations',
+                    'roof_surface_areas', 'roof_surface_azimuths', 'roof_surface_inclinations', 'roof_surface_types']
+    df = df.drop(columns=drop_columns)
+    df[['surface_areas', 'surface_azimuths', 'surface_inclinations']] = df[['surface_areas', 'surface_azimuths', 'surface_inclinations']].applymap(ast.literal_eval)
+                      
     # Export into CityJSON if "-o --output-cityjson" is specified
-    if output_cityjson is not None:
+    if output_cityjson:
+        city_objects = cm["CityObjects"]
         for index, row in df.iterrows():
             building_part_id = str(row["building_ID"]) + "-0"
             building_id = row["building_ID"]
             lod = row["lod"]
+            
+            cityobject = city_objects[building_id]
+            cityobject_part = city_objects[building_part_id]
+            
+            geometry_part = next(geom for geom in cityobject_part["geometry"] if str(geom["lod"]) == lod)
+            
+            geometry_part["semantics"]["+areas"] = [row["surface_areas"]]
+            geometry_part["semantics"]["+azimuths"] = [row["surface_azimuths"]]
+            geometry_part["semantics"]["+inclinations"] = [row["surface_inclinations"]]
 
-            surface_areas = row["surface_areas"]
-            surface_azimuths = row["surface_azimuths"]
-            surface_inclinations = row["surface_inclinations"]
-            
-            cityobject = cm["CityObjects"][building_id]
-            geometry = cityobject["geometry"][0]
-
-            cityobject_part = cm["CityObjects"][building_part_id]
-            
-            for geom in cityobject_part["geometry"]:
-                if str(geom["lod"]) == lod:
-                    geometry_part = geom
-            
-            geometry_part["semantics"]["+areas"] = [ast.literal_eval(surface_areas)]
-            geometry_part["semantics"]["+azimuths"] = [ast.literal_eval(surface_azimuths)]
-            geometry_part["semantics"]["+inclinations"] = [ast.literal_eval(surface_inclinations)]
+            row = row.drop(['surface_areas', 'surface_azimuths', 'surface_inclinations'])
             
             cityobject["attributes"] = row.to_dict()
 
