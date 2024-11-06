@@ -150,4 +150,5 @@ cityCompare.py
 cityPlot.py
 extractLod.py
 notebook.sh
+requirements.txt
 volume.py
