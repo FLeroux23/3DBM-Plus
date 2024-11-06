@@ -142,10 +142,13 @@ cython_debug/
 *.csv
 *.ipynb
 *.png
+helpers/minimumBoundingBox.py
+helpers/smallestenclosingcircle.py
 tests/
 __init__.py
 cityCompare.py
 cityPlot.py
 extractLod.py
 notebook.sh
+requirements.txt
 volume.py
