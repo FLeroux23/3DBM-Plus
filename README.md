@@ -2,7 +2,7 @@
 
 ## Key Update(s):
 - **New Feature(s)**:
-     - Output Format(s): Added support for **CityJSON**, **CSV** and **GPKG** (2D/3D)
+     - Output Format(s): Added support for <ins>**CityJSON**</ins>, **CSV** and  <ins>**GPKG**</ins> (2D/3D)
      - New Parameter(s):
           -   -o / --output-cityjson
           -   -c / --output-csv
@@ -15,9 +15,9 @@
      - Additional Semantic Surface Attribute(s): Now includes **area**, **azimuth**, **inclination** and **roof type** (sloped or flat)
 - **Performance Improvement(s)**: Enhanced speed and efficiency throughout the tool
 - **Dependency Change(s)**:
-     - Replaced the *PyMesh* library with ***Trimesh*** for simplified installation and setup, as PyMesh has not been maintained for years, making it challenging to install
+     - Replaced the *PyMesh* library with <ins>***Trimesh***</ins> for simplified installation and setup, as PyMesh has not been maintained for years, making it challenging to install
      - Updated compatibility with the latest versions of ***PyVista*** (0.44.1) and ***shapely*** (2.0.6)
-     - This fork has been tested and is compatible with Python 3.10
+     - This fork has been tested and is compatible with Python >= 3.10
 
 ## Usage Recommendation:
 For optimal performance, I highly recommend using **multi-threading** with the **-j** argument, which significantly speeds up processing.
@@ -25,11 +25,15 @@ For optimal performance, I highly recommend using **multi-threading** with the *
 With these updates, 3DBM is now easier to use and fully operational!
 
 ## Installation
-
+### Using `pip`
 To install all dependencies, run the following command:
-
 ```
 pip install -r requirements.txt
+```
+### Using `conda`
+To create the environment from the environment.yml file, run:
+```
+conda env create --file=environment.yml
 ```
 ___
 # 3DBM
