@@ -1,4 +1,4 @@
-name: test
+name: 3dbm
 channels:
   - conda-forge
   - defaults
