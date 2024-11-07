@@ -1,0 +1,24 @@
+name: test
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - numpy
+  - pyvista=0.44.1
+  - scipy
+  - pymeshfix
+  - click
+  - pandas
+  - geopandas
+  - tqdm
+  - shapely=2.0.6
+  - rtree
+  - scikit-learn=1.3.2
+  - trimesh
+  - fiona
+  - pip
+  - pip:
+      - python-polylabel
+      - mapbox-earcut
+      - miniball
