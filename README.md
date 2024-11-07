@@ -1,4 +1,5 @@
-# This fork of **3DBM** includes optimizations for improved performance
+# **3DBM-Plus**
+Includes optimizations for improved performance on 3DBM
 
 ## Key Update(s):
 - **New Feature(s)**:
