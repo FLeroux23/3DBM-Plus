@@ -12,14 +12,14 @@ def get_points_of_type(mesh, surface_type):
     # Check if "semantics" exists in cell data
     semantics = mesh.cell_data.get("semantics")
     if semantics is None:
-        return []
+        return np.array([])
 
     # Create a boolean mask for the desired surface type
     idxs = np.array(semantics) == surface_type
 
     # Check if there are no matching indices
     if not np.any(idxs):
-        return []
+        return np.array([])
 
     # Use numpy array to collect points corresponding to the surface type
     points = np.array([mesh.get_cell(i).points for i in range(mesh.number_of_cells)], dtype=object)
