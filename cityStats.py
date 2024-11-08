@@ -418,8 +418,8 @@ def process_building(building, building_id,
     roof_type = np.where(roof_type, "sloped", "flat")
 
     # --- Height statistics
-    roof_points = (geometry.get_points_of_type(mesh, "RoofSurface") if "semantics" in geom else [])
-    ground_points = (geometry.get_points_of_type(mesh, "GroundSurface") if "semantics" in geom else [])
+    roof_points = (geometry.get_points_of_type(mesh, "RoofSurface") if "semantics" in geom else np.array([]))
+    ground_points = (geometry.get_points_of_type(mesh, "GroundSurface") if "semantics" in geom else np.array([]))
     height_stats = (compute_stats([v[2] for v in roof_points]) if roof_points.size > 0 else compute_stats([0]))
     ground_z = (min([v[2] for v in ground_points]) if ground_points.size > 0 else mesh.bounds[4])
 
