@@ -5,8 +5,8 @@ Includes optimizations for improved performance on 3DBM
 - **New Feature(s)**:
      - Output Format(s): Added support for <ins>**CityJSON**</ins>, **CSV** and  <ins>**GPKG**</ins> (2D/3D)
      - New Parameter(s):
-          -   -o / --output-cityjson
-          -   -c / --output-csv
+          -   -c / --output-cityjson
+          -   -o / --output-csv
           -   -g / --output-gpkg
           -   -l / --filter-lod
           -   -f / --filter-building-id

@@ -300,11 +300,11 @@ def exchange_3d(mesh, evs=None, density=0.25, engine="manifold"):
     if mesh.n_open_edges > 0:
         return -1
 
-    pm_mesh = to_trimesh(mesh)
-    pm_evs = to_trimesh(evs)
+    tm_mesh = to_trimesh(mesh)
+    tm_evs = to_trimesh(evs)
 
     try:
-        inter = intersect(pm_mesh, pm_evs, engine)
+        inter = intersect(tm_mesh, tm_evs, engine)
     except:
         return -1
 

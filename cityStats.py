@@ -777,8 +777,8 @@ def process_files(input, output_cityjson, output_csv, output_gpkg,
 # Parameters
 @click.command()
 @click.argument("input", type=click.File("rb"))
-@click.option('-c', '--output-csv', type=click.File("wb"))
-@click.option('-o', '--output-cityjson')
+@click.option('-c', '--output-cityjson')
+@click.option('-o', '--output-csv', type=click.File("wb"))
 @click.option('-g', '--output-gpkg')
 @click.option('-l', '--filter-lod', default = '2.2')
 @click.option('-f', '--filter-building-id', default=None)
