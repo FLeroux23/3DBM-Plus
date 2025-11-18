@@ -21,6 +21,10 @@ Includes optimizations for improved performance on 3DBM
      - This fork has been tested and is compatible with Python >= 3.10
 
 ## Usage Recommendation:
+Usage example on how to run:
+```
+python cityStats.py [input_filepath] -c [output_cityjson_filepath] -j 8
+```
 For optimal performance, I highly recommend using **multi-threading** with the **-j** argument, which significantly speeds up processing.
 
 With these updates, 3DBM is now easier to use and fully operational!
