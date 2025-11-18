@@ -632,7 +632,7 @@ def city_stats(input,
                                         precision=precision, density_2d=density_2d, density_3d=density_3d,
                                         vertices=vertices, neighbours=neighbours,
                                         plot_buildings=plot_buildings, errors=errors)
-                # Add autobuilding ID for later joining with original attributes
+
                 if vals is not None:
                     parent_id = building_id.split('-')[0] if '-' in building_id else building_id
                     vals["building_ID"] = parent_id
@@ -674,7 +674,7 @@ def city_stats(input,
                 for future in futures:
                     try:
                         building_id, vals = future.result()
-                        # Add autobuilding ID for later joining with original attributes
+
                         if vals is not None:
                             parent_id = building_id.split('-')[0] if '-' in building_id else building_id
                             vals["building_ID"] = parent_id
